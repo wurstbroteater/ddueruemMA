@@ -32,7 +32,7 @@ def compute(expr, details):
             orders = compute_parallel(expr, svo, n, settings)
         else:
             cli.say(f"Computing", cli.highlight(n), "orders sequentially using", cli.highlight(svo.STUB))
-            orders = compute_seq(expr, svo, settings)
+            orders = compute_seq(expr, svo, n, settings)
 
         out[svo.STUB] = orders
 
@@ -56,7 +56,7 @@ def compute_parallel(expr, svo, n, settings):
     return store.values()
 
 
-def compute_seq(expr, svo, settings):
+def compute_seq(expr, svo, n, settings):
     orders = []
 
     for i in range(n):
