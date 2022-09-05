@@ -10,7 +10,7 @@ from os import path
 
 
 # Directories
-DIR_ROOT = "/tmp/ddueruem"
+DIR_ROOT = "/home/eric/Uni/MA/ddueruemMA/parsed"
 DIR_ARCHIVES = path.join(DIR_ROOT, "archives")
 DIR_CACHE = path.join(DIR_ROOT, "cache")
 DIR_TOOLS = path.join(DIR_ROOT, "tools")
