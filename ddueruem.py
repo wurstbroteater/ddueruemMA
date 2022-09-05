@@ -61,7 +61,6 @@ def main():
 
     args = sys.argv
     cli.debug(args)
-    print(args)
 
     files, actions = argparser.parse(args)
 
