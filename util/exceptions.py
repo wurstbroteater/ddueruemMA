@@ -1,0 +1,2 @@
+class MalformedInputException(Exception):
+    pass
