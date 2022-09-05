@@ -7,11 +7,13 @@ see https://docs.python.org/3/library/xml.html#xml-vulnerabilities
 
 # ------------------------------------------------------------------------------
 # External imports #-----------------------------------------------------------
+from os import path
 import xml.etree.ElementTree as xmlTree
 
 # ------------------------------------------------------------------------------
 # Internal imports #-----------------------------------------------------------
 from util.exceptions import MalformedInputException
+from util.util import hash_hex
 
 # ------------------------------------------------------------------------------
 # Plugin Properties #----------------------------------------------------------
@@ -22,8 +24,9 @@ parses = [".xml"]
 
 
 # ------------------From XML to JSON ------------------
-def _parse_xml_item(item):
+def _parse_xml_feature(item):
     """
+    E.g. returns:
      element = {
         "type": "alt",
         "abstract": True,
@@ -37,17 +40,40 @@ def _parse_xml_item(item):
     children = []
     # print(f"elem: {children}\t{as_dict['name']}\t{as_dict['type']}")
     for child in list(item):
-        children.append(_parse_xml_item(child))
+        children.append(_parse_xml_feature(child))
     as_dict.update({"children": children})
     return as_dict
 
 
-def _parse_struct(element):
-    # print(f"struct: {element.tag}, size: {len(element)}")
+def _parse_xml_constraint(item):
+    """
+    E.g. returns:
+     element = {
+        "type": "rule",
+        "feature": NAME,  # ONLY IF type == var
+        "children": []
+
+    """
+    # print(item.tag, item)
+    if item.tag == 'rule':
+        item = list(item)[0]
+    as_dict = {"type": item.tag}
+    if item.tag == 'var':
+        as_dict.update({"feature": item.text})
+    else:
+        children = []
+        for child in list(item):
+            children.append(_parse_xml_constraint(child))
+        as_dict.update({"children": children})
+    return as_dict
+
+
+def _parse_element(element, fun=_parse_xml_feature):
     response = {}
     for child in list(element):
-        element_as_dict = _parse_xml_item(child)
-        # print(f"{len(child)}\t{element_as_dict['name']}\t{element_as_dict['type']}")
+        element_as_dict = fun(child)
+        if fun is _parse_xml_constraint:
+            element_as_dict = {f"rule-{list(element).index(child)}": element_as_dict}
         response.update(element_as_dict)
     return response
 
@@ -57,7 +83,6 @@ def parse(file, is_file_path=True):
     If is_file_path is set to True (also per default), the file parameter will be interpreted as
     String containing the XML content, otherwise it will be interpreted as path to a file.
     """
-    response = {}
     if is_file_path:
         root = xmlTree.parse(file).getroot()
     else:
@@ -65,11 +90,18 @@ def parse(file, is_file_path=True):
 
     # print(f"root: {root.tag}, size: {len(root)}")
     malformed = True
+    feature_dia = {}
+    ctcs = {}
     for child in root.iter():
         if child.tag == 'struct':
             malformed = False
-            response.update(_parse_struct(child))
+            feature_dia.update(_parse_element(child))
+        if child.tag == 'constraints':
+            ctcs.update(_parse_element(child, _parse_xml_constraint))
 
     if malformed:
         raise MalformedInputException('Could not find \'struct\' tag in XML file')
-    return response
+
+    meta = {"input-filename": path.basename(file), "input-filehash": hash_hex(file)}
+
+    return [feature_dia, ctcs, meta]

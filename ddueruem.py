@@ -22,12 +22,47 @@ from svo import svo
 
 # ------------------------------------------------------------------------------
 
+def main2():
+    bootstrap()
+    # args = sys.argv
+    args = ['./ddueruem.py', 'examples/xml/npc.xml', '--svo', 'pre_cl']
+    cli.debug(args)
+
+    files, actions = argparser.parse(args)
+
+    cli.debug("files", files)
+    cli.debug("actions", actions)
+
+    exprs = []
+
+    for file in files:
+        # only if files ends with .xml
+        parser = parsers.by_filename(file)
+        fd, ctcs, meta = parser.parse(file)
+        cli.debug(f"Feature Diagram: {fd}")
+        cli.debug(f"CTCs: {ctcs}")
+        out = [fd, ctcs, meta]
+
+        exprs.append(out)
+
+    cli.debug("exprs", exprs)
+
+    cli.say("Computing static variable orders...")
+
+    for expr in exprs:
+        n = 1
+        actions["SVO"]["settings"]["n"] = n
+        svo.compute_parallel(expr, actions["SVO"]['algos'][0], actions["SVO"]["settings"]["n"], actions["SVO"]["settings"])
+    cli.say("Finished static variable ordering.")
+
 
 def main():
     bootstrap()
 
     args = sys.argv
     cli.debug(args)
+    print(args)
+
     files, actions = argparser.parse(args)
 
     cli.debug("files", files)
@@ -73,4 +108,4 @@ def verify_or_create_dir(dir):
 
 
 if __name__ == '__main__':
-    main()
+    main2()

@@ -23,6 +23,7 @@ class Expression:
         return len(self.variables)
 
 
+
 class CNF(Expression):
 
     def __init__(self, *args, **kwargs):
