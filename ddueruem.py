@@ -25,7 +25,7 @@ from svo import svo
 def main2():
     bootstrap()
     # args = sys.argv
-    args = ['./ddueruem.py', 'examples/xml/anyvend.xml', '--svo', 'pre_cl']
+    args = ['./ddueruem.py', 'examples/xml/npc.xml', '--svo', 'pre_cl']
     cli.debug(args)
 
     files, actions = argparser.parse(args)

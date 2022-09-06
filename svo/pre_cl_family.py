@@ -35,12 +35,39 @@ def run(fm, seed=None, **kwargs):
     # print(list(map(lambda x: x['name'], features)))
     # print(f'{list(map(lambda x: x["name"], ecr[0]))}\nECR: {ecr[1]}')
     s = f'FM has {len(ctcs)} CTCs and {len(features)} features from which {len(ecr[0])} occur in CTCs (ratio: {ecr[1]})'
-    # print(s)
-    # print(f'CNF has {cnf.get_no_variables()} vars and {len(cnf.clauses)} clauses')
+    cli.say(s)
+    cli.say(f'CNF has {cnf.get_no_variables()} vars and {len(cnf.clauses)} clauses')
 
-    # create cluster
+    # clauses with feature names (ignoring potential not before feature)
+    clauses = list(map(lambda cl: list(map(lambda l: cnf.variables[abs(l)]['desc'], cl)), cnf.clauses))
+    ec_names = list(map(lambda cl: cl['name'], ecr[0]))
+    c = []
+    for clause in clauses:
+        for literal in clause:
+            if literal in ec_names:
+                c.append(clause)
+                break
+    # clauses with variable names affected by ctcs
+    clauses = c
+    del c
+    # replace feature names by actual features
+    clauses = list(
+        map(lambda cl: list(map(lambda l: list(filter(lambda x: x['name'] == l, features))[0], cl)), clauses))
+    # only names
+    # print('clauses', list(map(lambda cl:list(map(lambda l: l['name'],cl)),clauses)))
+    clusters = []
+    for clause in clauses:
+        pairs = get_distinct_pairs(clause)
+        for f1, f2 in pairs:
+            pair = (f1, f2)
+            ancestor = find_lca(f1, f2, root, features)
+            print('pair', (f1['name'], f2['name']))
+            print('lca for', (f1['name'], f2['name']), 'is', ancestor['name'])
 
-    ec = ecr[0]
+        break
+
+    # for f in ec:
+
     f1 = [x for x in features if x['name'] == 'Pasta'][0]
     f2 = [x for x in features if x['name'] == 'SWING'][0]
 
@@ -61,12 +88,15 @@ def _pre_cl_rec(current, order, features):
     pass
 
 
-def _create_clusters(ctc, clusters):
+def _create_clusters(feature):
     pass
 
 
-def _create_initial_cluster(ctc, clusters):
-    pass
+def _create_initial_cluster(feature):
+    clusters = []
+    for child in set(feature['children']):
+        clusters.append([child])
+    return clusters
 
 
 def _merge_sharing_elements(root, cluster):
@@ -162,6 +192,11 @@ def find_lca(f1, f2, root, features):
         return
     print(path2)
     return [f for f in path1 if f in path2][0]
+
+
+def get_distinct_pairs(clause):
+    """Returns list of distinct (1,2) == (2,1) pairs"""
+    return [(a, b) for idx, a in enumerate(clause) for b in clause[idx + 1:]]
 
 
 # -----------------------data structures
