@@ -1,8 +1,8 @@
 c 1 NPC
 c 2 Mood
 c 3 Friendly
-c 4 Enemy
-c 5 Type
+c 4 Hostile
+c 5 Profession
 c 6 Farmer
 c 7 Villager
 c 8 Warrior
