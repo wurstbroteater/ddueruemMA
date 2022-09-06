@@ -25,7 +25,7 @@ from svo import svo
 def main2():
     bootstrap()
     # args = sys.argv
-    args = ['./ddueruem.py', 'examples/xml/npc.xml', '--svo', 'pre_cl']
+    args = ['./ddueruem.py', 'examples/xml/anyvend.xml', '--svo', 'pre_cl']
     cli.debug(args)
 
     files, actions = argparser.parse(args)
@@ -33,7 +33,7 @@ def main2():
     cli.debug("files", files)
     cli.debug("actions", actions)
 
-    exprs = []
+    models = []
 
     for file in files:
         # only if files ends with .xml
@@ -43,16 +43,16 @@ def main2():
         cli.debug(f"CTCs: {ctcs}")
         out = [fd, ctcs, meta]
 
-        exprs.append(out)
+        models.append(out)
 
-    cli.debug("exprs", exprs)
+    cli.debug("feature models", models)
 
     cli.say("Computing static variable orders...")
 
-    for expr in exprs:
+    for fm in models:
         n = 1
         actions["SVO"]["settings"]["n"] = n
-        svo.compute_parallel(expr, actions["SVO"]['algos'][0], actions["SVO"]["settings"]["n"], actions["SVO"]["settings"])
+        svo.compute_parallel(fm, actions["SVO"]['algos'][0], actions["SVO"]["settings"]["n"], actions["SVO"]["settings"])
     cli.say("Finished static variable ordering.")
 
 

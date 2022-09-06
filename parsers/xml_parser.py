@@ -38,11 +38,14 @@ def _parse_xml_feature(item):
     as_dict = {"type": item.tag}
     as_dict.update(item.attrib)
     children = []
-    # print(f"elem: {children}\t{as_dict['name']}\t{as_dict['type']}")
+    # print(f"elem: {children}\t\t{as_dict['type']}")
     for child in list(item):
-        children.append(_parse_xml_feature(child))
+        to_append = _parse_xml_feature(child)
+        if len(to_append) > 0:
+            children.append(to_append)
     as_dict.update({"children": children})
-    return as_dict
+    # ignore <graphics key=".." value=".."/>
+    return {} if item.tag == 'graphics' else as_dict
 
 
 def _parse_xml_constraint(item):
@@ -74,7 +77,8 @@ def _parse_element(element, fun=_parse_xml_feature):
         element_as_dict = fun(child)
         if fun is _parse_xml_constraint:
             element_as_dict = {f"rule-{list(element).index(child)}": element_as_dict}
-        response.update(element_as_dict)
+        if len(element_as_dict) > 0:
+            response.update(element_as_dict)
     return response
 
 

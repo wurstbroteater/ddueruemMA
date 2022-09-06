@@ -2,6 +2,10 @@
 # External imports #-----------------------------------------------------------
 import random
 
+# External imports #-----------------------------------------------------------
+from parsers.dimacs import parse
+from cli import cli
+
 # ------------------------------------------------------------------------------
 
 STUB = "pre_cl"
@@ -9,22 +13,44 @@ STUB = "pre_cl"
 
 # ------------------------------------------------------------------------------
 
-def run_cached(expr, id, store, kwargs):
-    root = expr[0].copy()
-    ctcs = expr[1].copy()
+def run_cached(fm, id, store, kwargs):
+    store[id] = run(fm, **kwargs)
+
+
+def run(fm, seed=None, **kwargs):
+    root = fm[0].copy()
+    ctcs = fm[1].copy()
     features = []
+    cnf = parse('examples/npc.dimacs')
     get_features(root, features)
+    ecr = calc_ecr(features, ctcs, True)
+
     print('------------------------------------------------------------------------------' +
           '------------------------------------------------------------------------------')
-    print(id, 'Feature Diagram:', root, '\nCTCs:', ctcs)
-    print('Store:', store, 'Settings:', kwargs)
-    print(f'Has {len(features)} distinct feature(s)')
+    # print(id, 'Feature Diagram:', root, '\nCTCs:', ctcs)
+    # print('Store:', store, 'Settings:', kwargs)
+    # print(f'Has {len(features)} distinct feature(s)')
     # print(f'CTCs: {ctcs}')
-    print(f'ECR: {calc_ecr(features, ctcs)}')
 
+    # print(list(map(lambda x: x['name'], features)))
+    # print(f'{list(map(lambda x: x["name"], ecr[0]))}\nECR: {ecr[1]}')
+    s = f'FM has {len(ctcs)} CTCs and {len(features)} features from which {len(ecr[0])} occur in CTCs (ratio: {ecr[1]})'
+    # print(s)
+    # print(f'CNF has {cnf.get_no_variables()} vars and {len(cnf.clauses)} clauses')
 
-def run(expr, seed=None, **kwargs):
-    pass
+    # create cluster
+
+    ec = ecr[0]
+    f1 = [x for x in features if x['name'] == 'Pasta'][0]
+    f2 = [x for x in features if x['name'] == 'SWING'][0]
+
+    lca = find_lca(f1, f2, root, features)
+
+    # print(ecr[0])
+    return {
+        "order": [],
+        "ecr": ecr
+    }
 
 
 def pre_cl(order, features, by='size'):
@@ -68,7 +94,7 @@ def get_features(elem, out=None):
 
 
 def get_ctc_features(ctc, out=None):
-    """Returns features of a single cross tree constraint"""
+    """Returns feature names of a single cross tree constraint"""
     if out is None:
         out = []
     for key in ctc:
@@ -91,7 +117,60 @@ def calc_ecr(features, ctcs, with_features=False):
         # Features per CTC
         features_in_ctcs.append(features_in_ctc)
     distinct_features = list(dict.fromkeys([f for sub in features_in_ctcs for f in sub]))
+    ecr = len(distinct_features) / len(features)
     if with_features:
-        return [distinct_features,len(distinct_features) / len(features)]
+        # map feature names into actual features
+        distinct_features = [x for x in features if x['name'] in distinct_features]
+        return [distinct_features, ecr]
     else:
-        return len(distinct_features) / len(features)
+        return ecr
+
+
+def _find_path(feature, root, features, parents=None):
+    """
+    Find the path from root to current feature node.
+    Returns True if path exists and fills parents list via side effect with nodes in the path
+    starting from the searched feature and ending at root
+    """
+    if len(parents) == 0:
+        parents.append(feature)
+    # there can be only be exactly one parent
+    found = [f for f in features if feature['name'] in set(f['children'])]
+    if len(found) == 0:
+        return False
+    elif feature['name'] is not root['name']:
+        parent = found[0]
+    else:
+        parent = root
+    parents.append(parent)
+    if parent['name'] is root['name']:
+        return True
+    else:
+        out = _find_path(parent, root, features, parents)
+        return out
+
+
+def find_lca(f1, f2, root, features):
+    """find lowest common ancestor of two features"""
+    path1 = []
+    if not _find_path(f1, root, features, path1):
+        cli.error(f'Could not find path in FD for feature {f1}')
+        return
+    path2 = []
+    if not _find_path(f2, root, features, path2):
+        cli.error(f'Could not find path in FD for feature {f2}')
+        return
+    print(path2)
+    return [f for f in path1 if f in path2][0]
+
+
+# -----------------------data structures
+class Cluster:
+
+    def __init__(self, features, relations, **kwargs):
+        self.features = features
+        self.relations = relations
+        self.stub = "Cluster"
+
+    def __str__(self):
+        return self.stub + " " + str(self.features) + " " + str(self.relations)
