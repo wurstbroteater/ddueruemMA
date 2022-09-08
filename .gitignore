@@ -1,5 +1,6 @@
 #out files
 parsed/
+result/
 
 #Intellij and VSC
 .idea/
