@@ -19,13 +19,17 @@ from cli import cli, argparser
 from parsers import parsers
 from svo import svo
 
-
 # ------------------------------------------------------------------------------
+#feature_model_name = 'busybox1dot18dot0'
+feature_model_name = 'npc'
+# feature_model_name = 'anyvend'
+
 
 def main2():
     bootstrap()
     # args = sys.argv
-    args = ['./ddueruem.py', 'examples/xml/npc.xml', '--svo', 'pre_cl']
+    name = feature_model_name + '.xml'
+    args = ['./ddueruem.py', 'examples/xml/' + name, '--svo', 'pre_cl']
     cli.debug(args)
 
     files, actions = argparser.parse(args)
@@ -52,7 +56,8 @@ def main2():
     for fm in models:
         n = 1
         actions["SVO"]["settings"]["n"] = n
-        svo.compute_parallel(fm, actions["SVO"]['algos'][0], actions["SVO"]["settings"]["n"], actions["SVO"]["settings"])
+        svo.compute_parallel(fm, actions["SVO"]['algos'][0], actions["SVO"]["settings"]["n"],
+                             actions["SVO"]["settings"])
     cli.say("Finished static variable ordering.")
 
 

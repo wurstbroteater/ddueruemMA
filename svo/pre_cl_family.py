@@ -3,8 +3,11 @@
 import random
 
 # External imports #-----------------------------------------------------------
-from parsers.dimacs import parse
+from parsers import dimacs, xml_parser
 from cli import cli
+from util.util import translate_xml
+import os
+from ddueruem import feature_model_name
 
 # ------------------------------------------------------------------------------
 
@@ -18,15 +21,29 @@ def run_cached(fm, id, store, kwargs):
 
 
 def run(fm, seed=None, **kwargs):
+    print('------------------------------------------------------------------------------' +
+          '------------------------------------------------------------------------------')
     root = fm[0].copy()
     ctcs = fm[1].copy()
     features = []
-    cnf = parse('examples/npc.dimacs')
-    get_features(root, features)
-    ecr = calc_ecr(features, ctcs, True)
+    model_name = feature_model_name
+    model_prefix = '.xml'
+    formats = ['uvl', 'dimacs', 'sxfm']
+    target_folder = f'/home/eric/Uni/MA/ddueruemMA/examples/{model_name}_results'
+    cli.say(f'Translating {model_name}{model_prefix} to {formats} ...')
+    if e := translate_xml(f'/home/eric/Uni/MA/ddueruemMA/examples/xml/{model_name}{model_prefix}', target_folder,
+                          formats) != "Successfully translated to all formats!":
+        cli.error(f'For model {model_name}{model_prefix}: {e}')
+        return
 
-    print('------------------------------------------------------------------------------' +
-          '------------------------------------------------------------------------------')
+    cnf = dimacs.parse(f'{target_folder}{os.path.sep}{model_name}_DIMACS.dimacs')
+    get_features(root, features)
+
+    unique_ctc_features, ecr = calc_ecr(features, ctcs, True)
+
+    ctc_clauses = get_features_from_names(
+        xml_parser.parse(f'{target_folder}{os.path.sep}{model_name}_SXFM.xml')[1]['clauses'], features)
+
     # print(id, 'Feature Diagram:', root, '\nCTCs:', ctcs)
     # print('Store:', store, 'Settings:', kwargs)
     # print(f'Has {len(features)} distinct feature(s)')
@@ -34,11 +51,45 @@ def run(fm, seed=None, **kwargs):
 
     # print(list(map(lambda x: x['name'], features)))
     # print(f'{list(map(lambda x: x["name"], ecr[0]))}\nECR: {ecr[1]}')
-    s = f'FM has {len(ctcs)} CTCs and {len(features)} features from which {len(ecr[0])} occur in CTCs (ratio: {ecr[1]})'
+    s = f'[INFO]\tFeature Model \'{model_name}\' has:\n' \
+        f'\t{len(features)} feature(s) and {len(ctcs)} CTC(s)\n' \
+        f'\t{len(unique_ctc_features)} unique features occur in CTC(s) (Ratio: {ecr})\n' \
+        f'\tAll CTCs consist of {len(ctc_clauses)} clause(s)'
     cli.say(s)
-    cli.say(f'CNF has {cnf.get_no_variables()} vars and {len(cnf.clauses)} clauses')
+    # cli.say(f'CTCs in CNF have {len(ctc_clauses)} clauses and {len(cnf.clauses)} clauses')
 
-    # clauses with feature names (ignoring potential not before feature)
+    print('clauses(names)', list(map(lambda cl: list(map(lambda l: l['name'], cl)), ctc_clauses)))
+    features_with_cluster = []
+    for feature in features:
+        feature = feature.copy()
+        feature.update({'cluster': {'features': set(), 'relations': list()}})
+        features_with_cluster.append(feature)
+
+    print('first', features_with_cluster[0])
+    # print('first in feature', features[0])
+    for clause in ctc_clauses:
+        pairs = get_distinct_pairs(clause)
+        for f1, f2 in pairs:
+            pair = (f1, f2)
+            ancestor = find_lca(f1, f2, root, features)
+            print('pair', (f1['name'], f2['name']))
+            print('lca for', (f1['name'], f2['name']), 'is', ancestor['name'])
+            feature_with_cluster = [f for f in features_with_cluster if
+                                    f['name'] == ancestor['name'] and len(set(f['cluster']['features'])) > 0 and len(
+                                        (list(f['cluster']['relations']))) > 0]
+            if len(feature_with_cluster) == 0:
+                print(f'Init cluster for ' + ancestor['name'])
+                features_with_cluster = _create_initial_cluster(ancestor)
+            elif len(feature_with_cluster) == 1:
+                pass
+            else:
+                cli.error('Incorrect amount of features. Should be 1 but is ' + str(len(feature_with_cluster)))
+                return
+            break
+        break
+
+    return
+
     clauses = list(map(lambda cl: list(map(lambda l: cnf.variables[abs(l)]['desc'], cl)), cnf.clauses))
     ec_names = list(map(lambda cl: cl['name'], ecr[0]))
     c = []
@@ -51,8 +102,10 @@ def run(fm, seed=None, **kwargs):
     clauses = c
     del c
     # replace feature names by actual features
-    clauses = list(
-        map(lambda cl: list(map(lambda l: list(filter(lambda x: x['name'] == l, features))[0], cl)), clauses))
+    print('clauses', clauses)
+    clauses = get_features_from_names(clauses, features)
+    print('clauses', clauses)
+    return
     # only names
     # print('clauses', list(map(lambda cl:list(map(lambda l: l['name'],cl)),clauses)))
     clusters = []
@@ -93,9 +146,8 @@ def _create_clusters(feature):
 
 
 def _create_initial_cluster(feature):
-    clusters = []
     for child in set(feature['children']):
-        clusters.append([child])
+
     return clusters
 
 
@@ -121,6 +173,11 @@ def get_features(elem, out=None):
     for child in list(elem['children']):
         get_features(child, out)
     return feature
+
+
+def get_features_from_names(names, features):
+    """From [['A',B],...] to e.g. [{'name':'A', 'children': set()},{'name':'B'..}, ...]"""
+    return list(map(lambda cl: list(map(lambda l: list(filter(lambda x: x['name'] == l, features))[0], cl)), names))
 
 
 def get_ctc_features(ctc, out=None):
@@ -151,9 +208,9 @@ def calc_ecr(features, ctcs, with_features=False):
     if with_features:
         # map feature names into actual features
         distinct_features = [x for x in features if x['name'] in distinct_features]
-        return [distinct_features, ecr]
+        return distinct_features, ecr
     else:
-        return ecr
+        return [], ecr
 
 
 def _find_path(feature, root, features, parents=None):
@@ -190,7 +247,6 @@ def find_lca(f1, f2, root, features):
     if not _find_path(f2, root, features, path2):
         cli.error(f'Could not find path in FD for feature {f2}')
         return
-    print(path2)
     return [f for f in path1 if f in path2][0]
 
 

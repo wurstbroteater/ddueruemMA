@@ -8,7 +8,8 @@ def translate_xml(filepath, target_folder, formats):
     path_to_jar = str(pathlib.Path(
         __file__).parent.resolve()) + os.path.sep + 'FeatureModelTransformation' + os.path.sep + 'FMTransform.jar'
     args = ['java', '-jar', path_to_jar, filepath, target_folder] + formats
-    rc = subprocess.call(args)
+    # hide normal outputs but show errors
+    rc = subprocess.call(args, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
     if rc == 0:
         return "Successfully translated to all formats!"
     elif rc == 1:
