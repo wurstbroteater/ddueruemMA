@@ -1,0 +1,25 @@
+namespace NPC
+
+features
+	NPC {abstract}	
+		mandatory
+			Mood	
+				alternative
+					Friendly
+					Hostile
+			Profession	
+				or
+					Farmer
+					Villager
+					Warrior
+
+		optional
+			HarvestSkills	
+				mandatory
+					Reaping
+					Hauling
+					Threshing
+
+constraints
+	(Farmer | Villager) & !Warrior => Friendly
+	Farmer => HarvestSkills
