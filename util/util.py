@@ -1,6 +1,22 @@
 from datetime import datetime
 
-import hashlib
+import hashlib, os, pathlib, subprocess
+
+
+def translate_xml(filepath, target_folder, formats):
+    """Receives path to XML Feature Model, target folder to store files and list of wanted file formats"""
+    path_to_jar = str(pathlib.Path(
+        __file__).parent.resolve()) + os.path.sep + 'FeatureModelTransformation' + os.path.sep + 'FMTransform.jar'
+    args = ['java', '-jar', path_to_jar, filepath, target_folder] + formats
+    rc = subprocess.call(args)
+    if rc == 0:
+        return "Successfully translated to all formats!"
+    elif rc == 1:
+        return "Failed to translate file!"
+    elif rc == 2:
+        return "Translation to at least 1 wanted format failed!"
+    else:
+        return "Unknown return code: " + str(rc)
 
 
 def hash_hex(filepath):
