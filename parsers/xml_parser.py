@@ -83,13 +83,13 @@ def _parse_sxfm_constraint(item):
     clauses = list(map(lambda x: x.replace('~', ''), clauses))
     # From ['X or Y', 'A or B'] to [['X','Y'], ['A','B']]
     clauses = list(map(lambda x: list(map(lambda inner: inner.strip(), x.split(' or '))), clauses))
-    return clauses
+    return {'clauses': clauses}
 
 
 def _parse_element(element, fun=_parse_xml_feature):
     response = {}
     if fun is _parse_sxfm_constraint:
-        response.update({'clauses': _parse_sxfm_constraint(element.text)})
+        response.update(_parse_sxfm_constraint(element.text))
     else:
         for child in list(element):
             element_as_dict = fun(child)
