@@ -91,6 +91,8 @@ def run(fm, seed=None, **kwargs):
             r = roots(f1, f2, ancestor, features_with_cluster)
             print('Roots are', list(map(lambda x: x['name'], r)))
             mc = _merge_sharing_elements(cs, r, features_with_cluster)
+            for c in mc:
+                c['relations'] = c['relations'] + r
             print('Merged cluster', mc)
             # print('ancestor (clustered)', len(cs), ancestor['clusters'])
             break
