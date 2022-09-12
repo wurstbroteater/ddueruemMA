@@ -55,10 +55,10 @@ def run(fm, seed=None, **kwargs):
         f'\t{len(features)} feature(s) and {len(ctcs)} CTC(s)\n' \
         f'\t{len(unique_ctc_features)} unique features occur in CTC(s) (Ratio: {ecr})\n' \
         f'\tAll CTCs consist of {len(ctc_clauses)} clause(s)'
-    cli.say(s)
+    cli.debug(s)
     # cli.say(f'CTCs in CNF have {len(ctc_clauses)} clauses and {len(cnf.clauses)} clauses')
-    print('\n---------Pre-CL---------')
-    print('clauses(names)', list(map(lambda cl: list(map(lambda l: l['name'], cl)), ctc_clauses)))
+    cli.debug('\n---------Pre-CL---------')
+    cli.debug('clauses(names)', list(map(lambda cl: list(map(lambda l: l['name'], cl)), ctc_clauses)))
     features_with_cluster = []
     for feature in features:
         feature = feature.copy()
@@ -73,7 +73,13 @@ def run(fm, seed=None, **kwargs):
     }
 
 
-def pre_cl(order, features, by='size'):
+def pre_cl(feature, features_with_clusters, order, by='size'):
+    if not order:
+        order = []
+    order.append(feature)
+    for f in feature['order']:
+        pass
+
     pass
 
 
@@ -111,7 +117,7 @@ def _create_clusters(ctc_clauses, root, features_with_cluster):
             ancestor['clusters'] = mc
             cli.debug("MC", mc_names_only)
             cli.debug('')
-
+    # just for pretty printing
     for f in features_with_cluster:
         f_clusters = list(f['clusters'])
         if len(f_clusters) > 0:
@@ -119,6 +125,13 @@ def _create_clusters(ctc_clauses, root, features_with_cluster):
             for c in f_clusters:
                 cli.debug('F:', list(map(lambda x: x['name'], c['features'])),
                           'R:', list(map(lambda x: list(map(lambda y: y['name'], x)), c['relations'])))
+
+    # create cluster for all features with no cluster
+    for f in features_with_cluster:
+        f_clusters = list(f['clusters'])
+        if len(f_clusters) == 0:
+            _create_initial_cluster(f, features_with_cluster)
+
     cli.debug('done')
     return features_with_cluster
 
