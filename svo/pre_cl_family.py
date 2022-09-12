@@ -57,7 +57,7 @@ def run(fm, seed=None, **kwargs):
         f'\tAll CTCs consist of {len(ctc_clauses)} clause(s)'
     cli.say(s)
     # cli.say(f'CTCs in CNF have {len(ctc_clauses)} clauses and {len(cnf.clauses)} clauses')
-
+    print('\n---------Pre-CL---------')
     print('clauses(names)', list(map(lambda cl: list(map(lambda l: l['name'], cl)), ctc_clauses)))
     features_with_cluster = []
     for feature in features:
@@ -66,39 +66,7 @@ def run(fm, seed=None, **kwargs):
         feature.update({'clusters': list()})
         features_with_cluster.append(feature)
 
-    # print('first', features_with_cluster[0])
-    # f1 = [x for x in features if x['name'] == 'Friendly'][0]
-    # f2 = [x for x in features if x['name'] == 'Warrior'][0]
-    # t_lca = find_lca(f1, f2, root, features_with_cluster)
-    # print("t_lca", t_lca)
-    # print("roots", list(map(lambda x: x['name'], roots(f1, f1, t_lca, features_with_cluster))))
-    # print("roots", roots(f1, f1, t_lca, features_with_cluster))
-
-    # print('first in feature', features[0])
-    for clause in ctc_clauses:
-        pairs = get_distinct_pairs(clause)
-        for f1, f2 in pairs:
-            pair = (f1, f2)
-            print('For pair', (f1['name'], f2['name']))
-            ancestor = find_lca(f1, f2, root, features_with_cluster)
-            print('Ancestor is', ancestor['name'])
-            cs = ancestor['clusters']
-            if len(cs) == 0:
-                print(f' Initializing cluster for ' + ancestor['name'])
-                cs = _create_initial_cluster(ancestor, features_with_cluster)
-            else:
-                print(f' Reusing cluster for ' + ancestor['name'])
-            r = roots(f1, f2, ancestor, features_with_cluster)
-            print('Roots are', list(map(lambda x: x['name'], r)))
-            mc = _merge_sharing_elements(cs, r, features_with_cluster)
-            for c in mc:
-                c['relations'] = c['relations'] + r
-            print('Merged cluster', mc)
-            # print('ancestor (clustered)', len(cs), ancestor['clusters'])
-            break
-        break
-
-    return
+    features_with_cluster = _create_clusters(ctc_clauses, root, features_with_cluster)
     return {
         "order": [],
         "ecr": ecr
@@ -113,8 +81,46 @@ def _pre_cl_rec(current, order, features):
     pass
 
 
-def _create_clusters(feature):
-    pass
+def _create_clusters(ctc_clauses, root, features_with_cluster):
+    for clause in ctc_clauses:
+        cli.debug('---------------------------------CTC--------------------------------------------------')
+        pairs = get_distinct_pairs(clause)
+        for f1, f2 in pairs:
+            cli.debug('For pair', (f1['name'], f2['name']))
+            ancestor = find_lca(f1, f2, root, features_with_cluster)
+            cli.debug('Ancestor is', ancestor['name'])
+            cs = ancestor['clusters']
+            if len(cs) == 0:
+                cli.debug(f' Initializing cluster for ' + ancestor['name'])
+                cs = _create_initial_cluster(ancestor, features_with_cluster)
+            else:
+                cli.debug(f' Reusing cluster for ' + ancestor['name'])
+            r = roots(f1, f2, ancestor, features_with_cluster)
+            cli.debug('Roots are', list(map(lambda x: x['name'], r)))
+            mc = _merge_sharing_elements(cs, r)
+            # add relation
+            for cl in mc:
+                for f in cl['features']:
+                    if f['name'] in list(map(lambda x: x['name'], r)):
+                        cl['relations'] = cl['relations'] + [r]
+                        break
+
+            mc_names_only = list(map(lambda c: {'features': list(map(lambda fe: fe['name'], c['features'])),
+                                                'relations': list(map(lambda re: list(map(lambda ir: ir['name'], re)),
+                                                                      c['relations']))}, mc))
+            ancestor['clusters'] = mc
+            cli.debug("MC", mc_names_only)
+            cli.debug('')
+
+    for f in features_with_cluster:
+        f_clusters = list(f['clusters'])
+        if len(f_clusters) > 0:
+            cli.debug('For feature', f['name'])
+            for c in f_clusters:
+                cli.debug('F:', list(map(lambda x: x['name'], c['features'])),
+                          'R:', list(map(lambda x: list(map(lambda y: y['name'], x)), c['relations'])))
+    cli.debug('done')
+    return features_with_cluster
 
 
 def _create_initial_cluster(feature, features_with_clusters):
@@ -130,8 +136,8 @@ def _create_initial_cluster(feature, features_with_clusters):
     return clusters
 
 
-def _merge_sharing_elements(clusters, r, features_wih_clusters):
-    # print("CS is", list(map(lambda x: x['name'], clusters)))
+def _merge_sharing_elements(clusters, r):
+    # print("CS features are", list(map(lambda x: list(map(lambda y: y['name'], x['features'])), clusters)))
     # print(len(clusters), "CS is", clusters)
     # print("R is", list(map(lambda x: x['name'], r)))
     # print("R is", roots)
@@ -143,11 +149,11 @@ def _merge_sharing_elements(clusters, r, features_wih_clusters):
             for f_in_cl in list(cl['features']):
                 if f_in_r == f_in_cl:
                     # print('FOUND', f_in_r)
-                    # print('nc', list(nc['features']))
-                    nc['features'] = nc['features'] + cl['features']
-                    nc['relations'] = nc['relations'] + cl['relations']
+                    # print('old nc', list(nc['features']))
+                    nc['features'] = nc['features'] + [f for f in cl['features'] if f not in nc['features']]
+                    nc['relations'] = cl['relations']
+                    # print('new nc', list(nc['features']))
                     to_remove.append(cl)
-        break
     clusters = [c for c in clusters if c not in to_remove]
     clusters.append(nc)
     # print(len(clusters), "CS is", clusters)
@@ -157,6 +163,7 @@ def _merge_sharing_elements(clusters, r, features_wih_clusters):
 def roots(f1, f2, lca, features):
     """If lca has no children, then the roots of f1 and f2 is [lca]. Otherwise roots is list containing the
      direct children of lca which have a path to f1 or f2, respectively."""
+    # print('f1:', f1['name'], ', f2:', f2['name'], ', lca:', lca['name'])
     children = list(lca['children'])
     out = []
     if len(children) == 0:
