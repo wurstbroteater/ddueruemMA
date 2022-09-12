@@ -1,16 +1,15 @@
 # ------------------------------------------------------------------------------
 # External imports #-----------------------------------------------------------
-import random
+import os
 
 # External imports #-----------------------------------------------------------
+import ddueruem
 from parsers import dimacs, xml_parser
 from cli import cli
 from util.util import translate_xml
-import os
 from ddueruem import feature_model_name
 
 # ------------------------------------------------------------------------------
-
 STUB = "pre_cl"
 
 
@@ -56,17 +55,25 @@ def run(fm, seed=None, **kwargs):
         f'\t{len(unique_ctc_features)} unique features occur in CTC(s) (Ratio: {ecr})\n' \
         f'\tAll CTCs consist of {len(ctc_clauses)} clause(s)'
     cli.debug(s)
-    # cli.say(f'CTCs in CNF have {len(ctc_clauses)} clauses and {len(cnf.clauses)} clauses')
+    # cli.say(f 'CTCs in CNF have {len(ctc_clauses)} clauses and {len(cnf.clauses)} clauses')
     cli.debug('\n---------Pre-CL---------')
     cli.debug('clauses(names)', list(map(lambda cl: list(map(lambda l: l['name'], cl)), ctc_clauses)))
     features_with_cluster = []
     for feature in features:
         feature = feature.copy()
-        # {'clusters': [{'features': set(), 'relations': list()}, ...]
+        # {'clusters': [{'features': list(), 'relations': list()}, ...]
         feature.update({'clusters': list()})
         features_with_cluster.append(feature)
 
     features_with_cluster = _create_clusters(ctc_clauses, root, features_with_cluster)
+    order = []
+    by = 'size'
+    pre_cl(features_with_cluster[0], features_with_cluster, order, by)
+    print('Pre-CL-' + str(by), 'ordering is:')
+    print(list(map(lambda x: x['name'], order)))
+    if ddueruem.feature_model_name == 'mendonca_dis':
+        print('Should be')
+        print(['r', 'c', 'i', 'j', 'a', 'd', 'b', 'e', 'g', 'h', 'f', 'l', 'm', 'k', 'n'])
     return {
         "order": [],
         "ecr": ecr
@@ -74,16 +81,35 @@ def run(fm, seed=None, **kwargs):
 
 
 def pre_cl(feature, features_with_clusters, order, by='size'):
-    if not order:
-        order = []
     order.append(feature)
-    for f in feature['order']:
-        pass
+    f_clusters = list(feature['clusters'])
+    print('Feature', feature['name'], 'has', len(f_clusters), 'cluster(s)')
+    # ASC sort by cluster size
+    f_clusters.sort(key=lambda x: get_cluster_size(x, features_with_clusters), reverse=False)
+    print('init cluster sort', list(
+        map(lambda x: (list(map(lambda y: y['name'], x['features'])), get_cluster_size(x, features_with_clusters)),
+            f_clusters)))
 
-    pass
+    for cluster in f_clusters:
+        # print('F:', list(map(lambda x: x['name'], cluster['features'])),
+        #      'R:', list(map(lambda x: list(map(lambda y: y['name'], x)), cluster['relations'])),
+        #      ', size:', get_cluster_size(cluster, features_with_clusters))
+        if by.lower() == 'size':
+            print('features', list(map(lambda x: x['name'], cluster['features'])))
+            temp_c = list(cluster['features'])
+            temp_c.sort(key=lambda x: get_subtree_size(x, features_with_clusters))
+            cluster['features'] = temp_c
+            print('ASC by subtree size',
+                  list(map(lambda x: (x['name'], get_subtree_size(x, features_with_clusters)), cluster['features'])))
+        elif by.lower() == 'min_span':
+            pass
+        else:
+            cli.error(f'Unknown sorting strategy: {by}')
+            return
 
-
-def _pre_cl_rec(current, order, features):
+        for f in cluster['features']:
+            print('')
+            pre_cl(f, features_with_clusters, order, by)
     pass
 
 
@@ -111,9 +137,9 @@ def _create_clusters(ctc_clauses, root, features_with_cluster):
                         cl['relations'] = cl['relations'] + [r]
                         break
 
-            mc_names_only = list(map(lambda c: {'features': list(map(lambda fe: fe['name'], c['features'])),
-                                                'relations': list(map(lambda re: list(map(lambda ir: ir['name'], re)),
-                                                                      c['relations']))}, mc))
+            mc_names_only = list(map(lambda cc: {'features': list(map(lambda fe: fe['name'], cc['features'])),
+                                                 'relations': list(map(lambda re: list(map(lambda ir: ir['name'], re)),
+                                                                       cc['relations']))}, mc))
             ancestor['clusters'] = mc
             cli.debug("MC", mc_names_only)
             cli.debug('')
@@ -138,7 +164,7 @@ def _create_clusters(ctc_clauses, root, features_with_cluster):
 
 def _create_initial_cluster(feature, features_with_clusters):
     clusters = []
-    for child in set(feature['children']):
+    for child in list(feature['children']):
         child = find_feature_by_name(child, features_with_clusters)
         if not child:
             cli.debug(f"Could not find feature {feature['name']}  in features_with_clusters")
@@ -202,10 +228,11 @@ def get_features(elem, out=None):
         out = []
 
     feature = {"name": elem['name']}
-    children = set()
+    children = list()
     # only add names to children ...
     for child in list(elem['children']):
-        children.add(child['name'])
+        if child not in children:
+            children.append(child['name'])
     feature.update({'children': children})
     out.append(feature)
     for child in list(elem['children']):
@@ -223,7 +250,7 @@ def find_feature_by_name(name, features):
 
 
 def get_features_from_names(names, features):
-    """From [['A',B],...] to e.g. [{'name':'A', 'children': set()},{'name':'B'..}, ...]"""
+    """From [['A','B'],...] to e.g. [{'name':'A', 'children':list()},{'name':'B'..}, ...]"""
     return list(map(lambda cl: list(map(lambda l: list(filter(lambda x: x['name'] == l, features))[0], cl)), names))
 
 
@@ -264,7 +291,7 @@ def find_path(feature, root, features):
     """Find path from root to current feature node. If a path exists it returns a list representing this path or
     an empty list otherwise"""
     path = []
-    if x := _find_path(feature, root, features, path):
+    if _find_path(feature, root, features, path):
         return path
     return []
 
@@ -278,7 +305,7 @@ def _find_path(feature, root, features, parents=None):
     if len(parents) == 0:
         parents.append(feature)
     # there can be only be exactly one parent
-    found = [f for f in features if feature['name'] in set(f['children'])]
+    found = [f for f in features if feature['name'] in list(f['children'])]
     if len(found) == 0:
         return False
     elif feature['name'] is not root['name']:
@@ -309,3 +336,35 @@ def find_lca(f1, f2, root, features):
 def get_distinct_pairs(clause):
     """Returns list of distinct (1,2) == (2,1) pairs"""
     return [(a, b) for idx, a in enumerate(clause) for b in clause[idx + 1:]]
+
+
+def get_cluster_size(cluster, features_with_clusters):
+    features = list(cluster['features'])
+    size = len(features)
+    for feature in features:
+        size = size + _get_cluster_size(feature, features_with_clusters)
+    return size
+
+
+def _get_cluster_size(feature, features_with_clusters):
+    children = list(feature['children'])
+    size = 0
+    if len(children) > 0:
+        features = get_features_from_names(children, features_with_clusters)
+        size = len(features)
+        for f in features:
+            # unpack
+            f = f[0]
+            size = size + _get_cluster_size(f, features_with_clusters)
+    return size
+
+
+def get_subtree_size(feature, features_with_clusters):
+    """Returns sum of all recursive children of feature aka subtree size"""
+    children = list(feature['children'])
+    size = len(children)
+    if size > 0:
+        for child in children:
+            child = find_feature_by_name(child, features_with_clusters)
+            size = size + get_subtree_size(child, features_with_clusters)
+    return size

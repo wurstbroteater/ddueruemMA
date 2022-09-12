@@ -17,5 +17,5 @@ DIR_TOOLS = path.join(DIR_ROOT, "tools")
 DIR_OUT = path.join(DIR_ROOT, "out")
 
 # Command-Line Interface
-DEBUG = True
+DEBUG = False
 SILENT = False
