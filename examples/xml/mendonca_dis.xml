@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<featureModel>
+	<properties>
+		<graphics key="autolayoutconstraints" value="false"/>
+		<graphics key="legendautolayout" value="true"/>
+		<graphics key="showconstraints" value="true"/>
+		<graphics key="showshortnames" value="false"/>
+		<graphics key="layout" value="horizontal"/>
+		<graphics key="showcollapsedconstraints" value="true"/>
+		<graphics key="legendhidden" value="false"/>
+		<graphics key="layoutalgorithm" value="1"/>
+	</properties>
+	<struct>
+		<and abstract="true" mandatory="true" name="r">
+			<graphics key="collapsed" value="false"/>
+			<feature name="a"/>
+			<and name="b">
+				<feature name="e"/>
+				<and name="f">
+					<feature name="k"/>
+					<feature name="l"/>
+					<feature name="m"/>
+					<feature name="n"/>
+				</and>
+				<feature name="g"/>
+				<feature name="h"/>
+			</and>
+			<and name="c">
+				<feature name="i"/>
+				<feature name="j"/>
+			</and>
+			<feature name="d"/>
+		</and>
+	</struct>
+	<constraints>
+		<rule>
+			<disj>
+				<var>a</var>
+				<var>m</var>
+			</disj>
+		</rule>
+		<rule>
+			<disj>
+				<var>g</var>
+				<var>d</var>
+			</disj>
+		</rule>
+		<rule>
+			<disj>
+				<var>a</var>
+				<disj>
+					<var>k</var>
+					<var>n</var>
+				</disj>
+			</disj>
+		</rule>
+	</constraints>
+</featureModel>
