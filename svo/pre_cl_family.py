@@ -1,13 +1,14 @@
 # ------------------------------------------------------------------------------
 # External imports #-----------------------------------------------------------
 import os
-
+from pprint import pprint
 # External imports #-----------------------------------------------------------
 import ddueruem
 from parsers import dimacs, xml_parser
 from cli import cli
 from util.util import translate_xml
 from ddueruem import feature_model_name
+from . import force
 
 # ------------------------------------------------------------------------------
 STUB = "pre_cl"
@@ -20,8 +21,8 @@ def run_cached(fm, id, store, kwargs):
 
 
 def run(fm, seed=None, **kwargs):
-    print('------------------------------------------------------------------------------' +
-          '------------------------------------------------------------------------------')
+    cli.say('------------------------------------------------------------------------------' +
+            '------------------------------------------------------------------------------')
     root = fm[0].copy()
     ctcs = fm[1].copy()
     features = []
@@ -37,6 +38,12 @@ def run(fm, seed=None, **kwargs):
 
     cnf = dimacs.parse(f'{target_folder}{os.path.sep}{model_name}_DIMACS.dimacs')
     get_features(root, features)
+    # add dimacs IDs for faster translation between FORCE and Pre-CL
+    for f in features:
+        for f_dimacs in cnf.variables:
+            if cnf.variables[f_dimacs]['desc'] == f['name']:
+                f.update({'dimacsIdx': cnf.variables[f_dimacs]['ID']})
+                break
 
     unique_ctc_features, ecr = calc_ecr(features, ctcs, True)
 
@@ -61,7 +68,6 @@ def run(fm, seed=None, **kwargs):
     features_with_cluster = []
     for feature in features:
         feature = feature.copy()
-        # {'clusters': [{'features': list(), 'relations': list()}, ...]
         feature.update({'clusters': list()})
         features_with_cluster.append(feature)
 
@@ -73,9 +79,13 @@ def run(fm, seed=None, **kwargs):
     print(list(map(lambda x: x['name'], order)))
     if ddueruem.feature_model_name == 'mendonca_dis':
         print('Should be')
-        print(['r', 'c', 'i', 'j', 'a', 'd', 'b', 'e', 'g', 'h', 'f', 'l', 'm', 'k', 'n'])
+        if by == 'size':
+            print(['r', 'c', 'i', 'j', 'a', 'd', 'b', 'e', 'g', 'h', 'f', 'l', 'm', 'k', 'n'])
+        elif by == 'min-span':
+            print(['r', 'c', 'i', 'j', 'a', 'b', 'e', 'g', 'h', 'f', 'l', 'm', 'k', 'n', 'd'])
     return {
-        "order": [],
+        "order": order,
+        'by': by,
         "ecr": ecr
     }
 
@@ -83,32 +93,51 @@ def run(fm, seed=None, **kwargs):
 def pre_cl(feature, features_with_clusters, order, by='size'):
     order.append(feature)
     f_clusters = list(feature['clusters'])
-    print('Feature', feature['name'], 'has', len(f_clusters), 'cluster(s)')
+    # print('Feature', feature['name'], 'has', len(f_clusters), 'cluster(s)')
     # ASC sort by cluster size
     f_clusters.sort(key=lambda x: get_cluster_size(x, features_with_clusters), reverse=False)
-    print('init cluster sort', list(
-        map(lambda x: (list(map(lambda y: y['name'], x['features'])), get_cluster_size(x, features_with_clusters)),
-            f_clusters)))
+    # print('init cluster sort', list(map(lambda x: (list(map(lambda y: y['name'], x['features'])), get_cluster_size(x, features_with_clusters)), f_clusters)))
 
     for cluster in f_clusters:
         # print('F:', list(map(lambda x: x['name'], cluster['features'])),
         #      'R:', list(map(lambda x: list(map(lambda y: y['name'], x)), cluster['relations'])),
         #      ', size:', get_cluster_size(cluster, features_with_clusters))
         if by.lower() == 'size':
-            print('features', list(map(lambda x: x['name'], cluster['features'])))
+            # print('features', list(map(lambda x: x['name'], cluster['features'])))
+            print('size')
             temp_c = list(cluster['features'])
             temp_c.sort(key=lambda x: get_subtree_size(x, features_with_clusters))
             cluster['features'] = temp_c
+
+            if len(cluster['features']) > 1:
+                # for all features with the same subtree_size, arrange them according to their index
+                new_cluster = []
+                first = cluster['features'][0]
+                size = get_subtree_size(first, features_with_clusters)
+                rearrange = [first]
+                for f in cluster['features'][1::]:
+                    if size == get_subtree_size(f, features_with_clusters):
+                        rearrange.append(f)
+                        continue
+                    rearrange.sort(key=lambda x: x['dimacsIdx'])
+                    new_cluster = new_cluster + rearrange
+                    size = get_subtree_size(f, features_with_clusters)
+                    rearrange = [f]
+                cluster['features'] = new_cluster + [f for f in rearrange if f not in new_cluster]
+
             print('ASC by subtree size',
                   list(map(lambda x: (x['name'], get_subtree_size(x, features_with_clusters)), cluster['features'])))
         elif by.lower() == 'min_span':
+            print('min_span', list(map(lambda x: x['name'], order)))
+            pprint(order)
+            force.run([], order)
             pass
         else:
             cli.error(f'Unknown sorting strategy: {by}')
             return
 
         for f in cluster['features']:
-            print('')
+            # print('')
             pre_cl(f, features_with_clusters, order, by)
     pass
 
