@@ -2,6 +2,7 @@
 # External imports #-----------------------------------------------------------
 import os
 from pprint import pprint
+import sys
 # External imports #-----------------------------------------------------------
 import ddueruem
 from parsers import dimacs, xml_parser
@@ -28,7 +29,7 @@ def run(fm, seed=None, **kwargs):
     features = []
     model_name = feature_model_name
     model_prefix = '.xml'
-    formats = ['uvl', 'dimacs', 'sxfm']
+    formats = ['dimacs', 'sxfm']
     target_folder = f'/home/eric/Uni/MA/ddueruemMA/examples/{model_name}_results'
     cli.say(f'Translating {model_name}{model_prefix} to {formats} ...')
     if e := translate_xml(f'/home/eric/Uni/MA/ddueruemMA/examples/xml/{model_name}{model_prefix}', target_folder,
@@ -72,17 +73,21 @@ def run(fm, seed=None, **kwargs):
         features_with_cluster.append(feature)
 
     features_with_cluster = _create_clusters(ctc_clauses, root, features_with_cluster)
+
     order = []
     by = 'size'
-    pre_cl(features_with_cluster[0], features_with_cluster, order, by)
+    pre_cl(find_feature_by_name(root['name'], features_with_cluster), features_with_cluster, order, by)
+
     print('Pre-CL-' + str(by), 'ordering is:')
     print(list(map(lambda x: x['name'], order)))
     if ddueruem.feature_model_name == 'mendonca_dis':
         print('Should be')
         if by == 'size':
-            print(['r', 'c', 'i', 'j', 'a', 'd', 'b', 'e', 'g', 'h', 'f', 'l', 'm', 'k', 'n'])
+            expected = ['r', 'c', 'i', 'j', 'a', 'd', 'b', 'e', 'g', 'h', 'f', 'l', 'm', 'k', 'n']
+            print('eq?', expected == list(map(lambda x: x['name'], order)), expected)
         elif by == 'min-span':
-            print(['r', 'c', 'i', 'j', 'a', 'b', 'e', 'g', 'h', 'f', 'l', 'm', 'k', 'n', 'd'])
+            expected = ['r', 'c', 'i', 'j', 'a', 'b', 'e', 'g', 'h', 'f', 'l', 'm', 'k', 'n', 'd']
+            print('eq?', expected == list(map(lambda x: x['name'], order)), expected)
     return {
         "order": order,
         'by': by,
@@ -103,14 +108,12 @@ def pre_cl(feature, features_with_clusters, order, by='size'):
         #      'R:', list(map(lambda x: list(map(lambda y: y['name'], x)), cluster['relations'])),
         #      ', size:', get_cluster_size(cluster, features_with_clusters))
         if by.lower() == 'size':
-            # print('features', list(map(lambda x: x['name'], cluster['features'])))
-            print('size')
             temp_c = list(cluster['features'])
             temp_c.sort(key=lambda x: get_subtree_size(x, features_with_clusters))
             cluster['features'] = temp_c
 
             if len(cluster['features']) > 1:
-                # for all features with the same subtree_size, arrange them according to their index
+                # for all features with the same subtree_size, arrange them according to their dimacsIdx
                 new_cluster = []
                 first = cluster['features'][0]
                 size = get_subtree_size(first, features_with_clusters)
@@ -125,8 +128,7 @@ def pre_cl(feature, features_with_clusters, order, by='size'):
                     rearrange = [f]
                 cluster['features'] = new_cluster + [f for f in rearrange if f not in new_cluster]
 
-            print('ASC by subtree size',
-                  list(map(lambda x: (x['name'], get_subtree_size(x, features_with_clusters)), cluster['features'])))
+            # print('ASC by subtree size',list(map(lambda x: (x['name'], get_subtree_size(x, features_with_clusters)), cluster['features'])))
         elif by.lower() == 'min_span':
             print('min_span', list(map(lambda x: x['name'], order)))
             pprint(order)
@@ -279,8 +281,23 @@ def find_feature_by_name(name, features):
 
 
 def get_features_from_names(names, features):
-    """From [['A','B'],...] to e.g. [{'name':'A', 'children':list()},{'name':'B'..}, ...]"""
-    return list(map(lambda cl: list(map(lambda l: list(filter(lambda x: x['name'] == l, features))[0], cl)), names))
+    """
+    From [['A','B'],...] to e.g. [{'name':'A', 'children':list()},{'name':'B'..}, ...] or
+    From ['A','B',...] to e.g. [{'name':'A', 'children':list()},{'name':'B'..}, ...]"""
+    # TODO: Optimize this method
+    is_list = False
+    out = []
+    for n in names:
+        is_list = type(n) is list
+        if not is_list:
+            for f in features:
+                if f['name'] == n:
+                    out.append([f])
+
+    if is_list:
+        foo = list(map(lambda cl: list(map(lambda l: list(filter(lambda x: x['name'] == l, features))[0], cl)), names))
+        return foo
+    return out
 
 
 def get_ctc_features(ctc, out=None):

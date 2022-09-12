@@ -49,7 +49,7 @@ def run(expr, order=None, seed=None, time_run=60, **kwargs):
         span = compute_span(clauses, order)
 
         if span_old == span:
-            break;
+            break
 
     return {
         "order": order,
@@ -68,7 +68,6 @@ def compute_span(clauses, order):
     span = []
     for clause in clauses:
         lspan = 0
-
         indizes = [order.index(abs(x)) for x in clause]
         lspan = max(indizes) - min(indizes)
 
