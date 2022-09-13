@@ -30,5 +30,6 @@ echo "[INFO] Moving into ddueruem workspace..."
 rm -rf evaluation/ > /dev/null
 mkdir evaluation
 cp -r ../data/FeatureModels/* evaluation/
+rm -rf evaluation/VELVET
 echo "[INFO] Done!"
 echo "----Workspace is prepared!----"
