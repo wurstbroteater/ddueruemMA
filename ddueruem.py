@@ -34,6 +34,7 @@ def main2():
     # args = sys.argv
     name = feature_model_name + '.xml'
     args = ['./ddueruem.py', 'examples/xml/' + name, '--svo', 'pre_cl']
+    # args = ['./ddueruem.py', 'examples/xml/anyvend.xml', 'examples/xml/npc.xml', 'examples/xml/mendonca_dis.xml', 'examples/xml/automotiv2v4.xml' '--svo', 'pre_cl']
     cli.debug('args', args)
 
     files, actions = argparser.parse(args)
