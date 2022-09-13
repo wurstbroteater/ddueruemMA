@@ -21,11 +21,11 @@ from svo import svo
 
 # ------------------------------------------------------------------------------
 # feature_model_name = 'busybox1dot18dot0'
-# feature_model_name = 'npc'
+feature_model_name = 'npc'
 # feature_model_name = 'anyvend'
 # feature_model_name = 'finSer01'
 # feature_model_name = 'automotiv2v4'
-feature_model_name = 'mendonca_dis'
+# feature_model_name = 'mendonca_dis'
 
 
 def main2():
