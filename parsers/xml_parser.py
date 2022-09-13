@@ -45,7 +45,7 @@ def _parse_xml_feature(item):
             children.append(to_append)
     as_dict.update({"children": children})
     # ignore <graphics key=".." value=".."/>
-    return {} if item.tag == 'graphics' else as_dict
+    return {} if item.tag == 'graphics' or item.tag == 'description' else as_dict
 
 
 def _parse_xml_constraint(item):
