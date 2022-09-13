@@ -67,8 +67,10 @@ def main2():
         cli.say("Computing static variable orders...")
         n = 1
         actions["SVO"]["settings"]["n"] = n
-        if Path(str(config.DIR_OUT) + os.path.sep +
-                str(file).replace('.xml', '_DIMACS.dimacs-pre_cl-1.orders').split(os.path.sep)[-1]).is_file():
+        foo = str(config.DIR_OUT) + os.path.sep + str(file).replace('.xml', '_DIMACS.dimacs-pre_cl-1.orders').split(os.path.sep)[-1]
+        print(Path(foo).is_file(),foo)
+        return
+        if Path(foo).is_file():
             cli.say('.orders file already present, skipping...')
         else:
             svo.compute(data, actions['SVO'])
