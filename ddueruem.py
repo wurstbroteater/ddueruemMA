@@ -56,10 +56,11 @@ def main2():
                 break
 
         order_file_path = str(config.DIR_OUT) + os.path.sep + \
-                     str(file).replace('.xml', '_DIMACS.dimacs-pre_cl-1.orders').split(os.path.sep)[-1]
+                          str(file).replace('.xml', '_DIMACS.dimacs-pre_cl-1.orders').split(os.path.sep)[-1]
         if Path(order_file_path).is_file():
-            cli.say('.orders file already present, skipping...')
-
+            cli.say(f".orders feature model {str(file).replace('.xml', '').split(os.path.sep)[-1]}",
+                    "already present, skipping...")
+            continue
         if len(format_paths) > 0:
             for p in format_paths:
                 if 'dimacs' in p.lower():
