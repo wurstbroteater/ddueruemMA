@@ -21,11 +21,11 @@ from svo import svo
 
 # ------------------------------------------------------------------------------
 # feature_model_name = 'busybox1dot18dot0'
-feature_model_name = 'npc'
+# feature_model_name = 'npc'
 # feature_model_name = 'anyvend'
 # feature_model_name = 'finSer01'
 # feature_model_name = 'automotiv2v4'
-# feature_model_name = 'mendonca_dis'
+feature_model_name = 'mendonca_dis'
 
 
 def main2():
@@ -63,10 +63,15 @@ def main2():
                 else:
                     cli.warning("Found suspicious file (format): " + p)
             pass
+
         cli.say("Computing static variable orders...")
         n = 1
         actions["SVO"]["settings"]["n"] = n
-        svo.compute(data, actions['SVO'])
+        if Path(str(config.DIR_OUT) + os.path.sep +
+                str(file).replace('.xml', '_DIMACS.dimacs-pre_cl-1.orders').split(os.path.sep)[-1]).is_file():
+            cli.say('.orders file already present, skipping...')
+        else:
+            svo.compute(data, actions['SVO'])
         cli.say("Finished static variable ordering.")
         cli.debug("Feature model", data['FeatureModel'])
 
@@ -132,6 +137,7 @@ def bootstrap_pre_cl(file_path):
                 formats.append('dimacs')
             elif 'sxfm' in format_path.lower():
                 formats.append('sxfm')
+
     if len(formats) > 0:
         cli.say('Creating formats', formats)
         if e := util.translate_xml(file_path, formats_dir, formats) != "Successfully translated to all formats!":
