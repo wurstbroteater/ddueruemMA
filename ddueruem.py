@@ -10,7 +10,7 @@ import os
 from os import path
 from pathlib import Path
 import sys
-
+from glob import glob
 # ------------------------------------------------------------------------------
 # Internal imports #-----------------------------------------------------------
 import config
@@ -33,7 +33,8 @@ def main2():
     bootstrap()
     # args = sys.argv
     name = feature_model_name + '.xml'
-    args = ['./ddueruem.py', 'examples/xml/' + name, '--svo', 'pre_cl']
+    args = ['./ddueruem.py'] + glob('evaluation/**/*.xml', recursive=True) + ['--svo', 'pre_cl']
+    # args = ['./ddueruem.py', 'examples/xml/' + name, '--svo', 'pre_cl']
     # args = ['./ddueruem.py', 'examples/xml/anyvend.xml', 'examples/xml/npc.xml', 'examples/xml/mendonca_dis.xml', 'examples/xml/automotiv2v4.xml', '--svo', 'pre_cl']
     cli.debug('args', args)
 
