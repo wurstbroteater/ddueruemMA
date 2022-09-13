@@ -67,12 +67,13 @@ def run(data, seed=None, **kwargs):
         elif by == 'min-span':
             expected = ['r', 'c', 'i', 'j', 'a', 'b', 'e', 'g', 'h', 'f', 'l', 'm', 'k', 'n', 'd']
             print('eq?', expected == list(map(lambda x: x['name'], order)), expected)
-    # print('Order contains', len(order), 'vars from total of', len(cnf.variables))
+    if (l_o := len(order)) != (l_v := len(cnf.variables)):
+        cli.warning('Order contains', l_o, 'vars from total of', l_v)
     return {
         'order': list(map(lambda x: x['dimacsIdx'], order)),
         'features_with_cluster': features_with_cluster,
-        'time_clustering':[start_clustering,end_clustering, end_clustering - start_clustering],
-        'time_pre_cl':[start_pre_cl,end_pre_cl, end_pre_cl - start_pre_cl],
+        'time_clustering': [start_clustering, end_clustering, end_clustering - start_clustering],
+        'time_pre_cl': [start_pre_cl, end_pre_cl, end_pre_cl - start_pre_cl],
         'by': by,
         'ecr': ecr
     }
