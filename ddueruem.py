@@ -16,17 +16,16 @@ import sys
 import config
 from util import util
 from cli import cli, argparser
-
 from parsers import parsers, dimacs, xml_parser
 from svo import svo
 
 # ------------------------------------------------------------------------------
 # feature_model_name = 'busybox1dot18dot0'
 # feature_model_name = 'npc'
-feature_model_name = 'anyvend'
+# feature_model_name = 'anyvend'
+feature_model_name = 'mendonca_dis'
 
 
-# feature_model_name = 'mendonca_dis'
 # feature_model_name = 'automotiv2v4'
 
 
@@ -35,20 +34,21 @@ def main2():
     # args = sys.argv
     name = feature_model_name + '.xml'
     args = ['./ddueruem.py', 'examples/xml/' + name, '--svo', 'pre_cl']
-    cli.debug(args)
+    cli.debug('args', args)
 
     files, actions = argparser.parse(args)
 
-    cli.say("files", files)
-    cli.say("actions", actions)
+    cli.debug("files", files)
+    cli.debug("actions", actions)
+
     data = {}
     for file in files:
         # only if files ends with .xml
         parser = parsers.by_filename(file)
-        fd, ctcs, meta = parser.parse(file)
+        fd, ctcs, _ = parser.parse(file)
         cli.debug(f"Feature Diagram: {fd}")
         cli.debug(f"CTCs: {ctcs}")
-        data = {'FeatureModel': fd, 'CTCs': ctcs, 'Meta': meta}
+        data = {'FeatureModel': fd, 'CTCs': ctcs, 'by': 'size'}
         format_paths = []
         for algo_name in list(map(lambda x: x.__name__, actions['SVO']['algos'])):
             if 'pre_cl' in algo_name:
@@ -68,8 +68,7 @@ def main2():
     cli.say("Computing static variable orders...")
     n = 1
     actions["SVO"]["settings"]["n"] = n
-    svo.compute_parallel(data, actions["SVO"]['algos'][0], actions["SVO"]["settings"]["n"],
-                         actions["SVO"]["settings"])
+    svo.compute(data, actions['SVO'])
     cli.say("Finished static variable ordering.")
 
 

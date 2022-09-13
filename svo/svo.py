@@ -2,6 +2,7 @@ import multiprocessing
 
 from os import linesep, path
 
+from util.formats import CNF
 from . import *
 import config
 from util import plugin, util
@@ -17,8 +18,12 @@ def by_stub(stub):
 def compute(expr, details):
     algos = details["algos"]
     settings = details["settings"]
-
-    expr_name = expr.meta["input-filename"]
+    if type(expr) == CNF:
+        expr_name = expr.meta["input-filename"]
+    else:
+        # currently this is false if input file is not dimacs but svo is force
+        # or for svo is pre_cl
+        expr_name = expr['dimacs'].meta["input-filename"]
 
     # the number of orders to compute per algorithm
     n = settings["n"]
@@ -68,11 +73,17 @@ def compute_seq(expr, svo, n, settings):
 
 def store(expr, n, orders_by_svo, settings):
     out = {}
+    if type(expr) == CNF:
+        cnf = expr
+    else:
+        # currently this is false if input file is not dimacs but svo is force
+        # or for svo is pre_cl
+        cnf = expr['dimacs']
 
     for stub, orders in orders_by_svo.items():
         content = [
-            f"input-filename:{expr.meta['input-filename']}",
-            f"input-filehash:{expr.meta['input-filehash']}",
+            f"input-filename:{cnf.meta['input-filename']}",
+            f"input-filehash:{cnf.meta['input-filehash']}",
             f"svo-stub:{stub}",
             f"n:{n}",
             "[orders]"
@@ -93,15 +104,14 @@ def store(expr, n, orders_by_svo, settings):
                 content.append(", ".join([str(x) for x in order]))
 
         content = linesep.join(content) + linesep
-
-        filename = f"{expr.meta['input-filename']}-{stub}-{n}.orders"
+        filename = f"{cnf.meta['input-filename']}-{stub}-{n}.orders"
         filepath = path.join(config.DIR_OUT, filename)
 
         if path.exists(filepath):
             if not "ignore_existing" in settings:
                 filepath_old = filepath
 
-                filename = f"{expr.meta['input-filename']}-{stub}-{n}-{util.timestamp()}.orders"
+                filename = f"{cnf.meta['input-filename']}-{stub}-{n}-{util.timestamp()}.orders"
                 filepath = path.join(config.DIR_OUT, filename)
 
                 cli.say("Order file", cli.highlight(filepath_old), "already exists, saving with timestamp",

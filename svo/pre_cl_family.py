@@ -1,13 +1,9 @@
 # ------------------------------------------------------------------------------
 # External imports #-----------------------------------------------------------
-import os
-from pprint import pprint
-import sys
+from datetime import datetime, timedelta
 # External imports #-----------------------------------------------------------
 import ddueruem
-from parsers import dimacs, xml_parser
 from cli import cli
-from util.util import translate_xml
 from ddueruem import feature_model_name
 from . import force
 
@@ -27,6 +23,7 @@ def run(data, seed=None, **kwargs):
     root = data['FeatureModel'].copy()
     ctcs = data['CTCs'].copy()
     cnf = data['dimacs']
+    by = data['by']
     ctcs_as_cnf = data['sxfm'][1]['clauses']
     model_name = feature_model_name
     features = []
@@ -54,38 +51,39 @@ def run(data, seed=None, **kwargs):
         feature.update({'clusters': list()})
         features_with_cluster.append(feature)
 
+    start_clustering = datetime.now()
     features_with_cluster = _create_clusters(ctc_clauses, root, features_with_cluster)
-
+    end_clustering = datetime.now()
     order = []
-    by = 'size'
-    pre_cl(find_feature_by_name(root['name'], features_with_cluster), features_with_cluster, order, by)
-
-    print('Pre-CL-' + str(by), 'ordering is:')
-    print(list(map(lambda x: x['name'], order)))
+    start_pre_cl = datetime.now()
+    pre_cl(find_feature_by_name(root['name'], features_with_cluster), features_with_cluster, order, cnf, by)
+    end_pre_cl = datetime.now()
+    # print('Pre-CL-' + str(by), 'ordering is:')
+    # print(list(map(lambda x: x['dimacsIdx'], order)))
     if ddueruem.feature_model_name == 'mendonca_dis':
-        print('Should be')
         if by == 'size':
             expected = ['r', 'c', 'i', 'j', 'a', 'd', 'b', 'e', 'g', 'h', 'f', 'l', 'm', 'k', 'n']
             print('eq?', expected == list(map(lambda x: x['name'], order)), expected)
         elif by == 'min-span':
             expected = ['r', 'c', 'i', 'j', 'a', 'b', 'e', 'g', 'h', 'f', 'l', 'm', 'k', 'n', 'd']
             print('eq?', expected == list(map(lambda x: x['name'], order)), expected)
-    print('Order contains', len(order), 'vars from total of', len(cnf.variables))
+    # print('Order contains', len(order), 'vars from total of', len(cnf.variables))
     return {
-        'order': order,
+        'order': list(map(lambda x: x['dimacsIdx'], order)),
         'features_with_cluster': features_with_cluster,
+        'time_clustering':[start_clustering,end_clustering, end_clustering - start_clustering],
+        'time_pre_cl':[start_pre_cl,end_pre_cl, end_pre_cl - start_pre_cl],
         'by': by,
         'ecr': ecr
     }
 
 
-def pre_cl(feature, features_with_clusters, order, by='size'):
+def pre_cl(feature, features_with_clusters, order, cnf, by='size'):
     order.append(feature)
     f_clusters = list(feature['clusters'])
     # print('Feature', feature['name'], 'has', len(f_clusters), 'cluster(s)')
     # ASC sort by cluster size
     f_clusters.sort(key=lambda x: get_cluster_size(x, features_with_clusters), reverse=False)
-    # print('init cluster sort', list(map(lambda x: (list(map(lambda y: y['name'], x['features'])), get_cluster_size(x, features_with_clusters)), f_clusters)))
 
     for cluster in f_clusters:
         # print('F:', list(map(lambda x: x['name'], cluster['features'])),
@@ -114,17 +112,21 @@ def pre_cl(feature, features_with_clusters, order, by='size'):
 
             # print('ASC by subtree size',list(map(lambda x: (x['name'], get_subtree_size(x, features_with_clusters)), cluster['features'])))
         elif by.lower() == 'min_span':
-            print('min_span', list(map(lambda x: x['name'], order)))
-            pprint(order)
-            force.run([], order)
-            pass
+            # TODO: WIP
+            # ['r', 'c', 'i', 'j', 'd', 'a', 'b', 'e', 'g', 'h', 'f', 'l', 'm', 'k', 'n']
+            # order = [1, 12, 13, 14, 15, 2, 3, 4, 10, 11, 5, 7, 8, 6, 9]
+            print(list(map(lambda x: x['name'], order)))
+            # order = [1, 12, 13, 14, 15, 2, 3, 4, 10, 11, 5, 7, 8, 6, 9]
+            print('min_span')
+            order = force.run(cnf, order)['order']
+            print('force', order)
+            return
         else:
             cli.error(f'Unknown sorting strategy: {by}')
             return
 
         for f in cluster['features']:
-            # print('')
-            pre_cl(f, features_with_clusters, order, by)
+            pre_cl(f, features_with_clusters, order, cnf, by)
     pass
 
 
