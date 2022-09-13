@@ -17,27 +17,19 @@ STUB = "pre_cl"
 
 # ------------------------------------------------------------------------------
 
-def run_cached(fm, id, store, kwargs):
-    store[id] = run(fm, **kwargs)
+def run_cached(data, id, store, kwargs):
+    store[id] = run(data, **kwargs)
 
 
-def run(fm, seed=None, **kwargs):
+def run(data, seed=None, **kwargs):
     cli.say('------------------------------------------------------------------------------' +
             '------------------------------------------------------------------------------')
-    root = fm[0].copy()
-    ctcs = fm[1].copy()
-    features = []
+    root = data['FeatureModel'].copy()
+    ctcs = data['CTCs'].copy()
+    cnf = data['dimacs']
+    ctcs_as_cnf = data['sxfm'][1]['clauses']
     model_name = feature_model_name
-    model_prefix = '.xml'
-    formats = ['dimacs', 'sxfm']
-    target_folder = f'/home/eric/Uni/MA/ddueruemMA/examples/{model_name}_results'
-    cli.say(f'Translating {model_name}{model_prefix} to {formats} ...')
-    if e := translate_xml(f'/home/eric/Uni/MA/ddueruemMA/examples/xml/{model_name}{model_prefix}', target_folder,
-                          formats) != "Successfully translated to all formats!":
-        cli.error(f'For model {model_name}{model_prefix}: {e}')
-        return
-
-    cnf = dimacs.parse(f'{target_folder}{os.path.sep}{model_name}_DIMACS.dimacs')
+    features = []
     get_features(root, features)
     # add dimacs IDs for faster translation between FORCE and Pre-CL
     for f in features:
@@ -47,23 +39,13 @@ def run(fm, seed=None, **kwargs):
                 break
 
     unique_ctc_features, ecr = calc_ecr(features, ctcs, True)
+    ctc_clauses = get_features_from_names(ctcs_as_cnf, features)
 
-    ctc_clauses = get_features_from_names(
-        xml_parser.parse(f'{target_folder}{os.path.sep}{model_name}_SXFM.xml')[1]['clauses'], features)
-
-    # print(id, 'Feature Diagram:', root, '\nCTCs:', ctcs)
-    # print('Store:', store, 'Settings:', kwargs)
-    # print(f'Has {len(features)} distinct feature(s)')
-    # print(f'CTCs: {ctcs}')
-
-    # print(list(map(lambda x: x['name'], features)))
-    # print(f'{list(map(lambda x: x["name"], ecr[0]))}\nECR: {ecr[1]}')
     s = f'[INFO]\tFeature Model \'{model_name}\' has:\n' \
         f'\t{len(features)} feature(s) and {len(ctcs)} CTC(s)\n' \
         f'\t{len(unique_ctc_features)} unique features occur in CTC(s) (Ratio: {ecr})\n' \
         f'\tAll CTCs consist of {len(ctc_clauses)} clause(s)'
     cli.debug(s)
-    # cli.say(f 'CTCs in CNF have {len(ctc_clauses)} clauses and {len(cnf.clauses)} clauses')
     cli.debug('\n---------Pre-CL---------')
     cli.debug('clauses(names)', list(map(lambda cl: list(map(lambda l: l['name'], cl)), ctc_clauses)))
     features_with_cluster = []
@@ -88,10 +70,12 @@ def run(fm, seed=None, **kwargs):
         elif by == 'min-span':
             expected = ['r', 'c', 'i', 'j', 'a', 'b', 'e', 'g', 'h', 'f', 'l', 'm', 'k', 'n', 'd']
             print('eq?', expected == list(map(lambda x: x['name'], order)), expected)
+    print('Order contains', len(order), 'vars from total of', len(cnf.variables))
     return {
-        "order": order,
+        'order': order,
+        'features_with_cluster': features_with_cluster,
         'by': by,
-        "ecr": ecr
+        'ecr': ecr
     }
 
 
