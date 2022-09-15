@@ -71,7 +71,7 @@ def run(data, seed=None, **kwargs):
         cli.warning('Order contains', l_o, 'vars from total of', l_v)
     return {
         'order': list(map(lambda x: x['dimacsIdx'], order)),
-        'features_with_cluster': features_with_cluster,
+        #'features_with_cluster': features_with_cluster,
         'time_clustering': [start_clustering, end_clustering, end_clustering - start_clustering],
         'time_pre_cl': [start_pre_cl, end_pre_cl, end_pre_cl - start_pre_cl],
         'by': by,

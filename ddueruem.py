@@ -32,16 +32,17 @@ def main2():
     bootstrap()
     # args = sys.argv
     name = feature_model_name + '.xml'
-    args = ['./ddueruem.py'] + glob('evaluation/**/*.xml', recursive=True) + ['--svo', 'pre_cl']
+    evals = [xml for xml in glob('evaluation/**/*.xml', recursive=True) if '_sxfm' not in str(xml).lower()]
+    args = ['./ddueruem.py'] + evals + ['--svo', 'pre_cl']
     # args = ['./ddueruem.py', 'examples/xml/' + name, '--svo', 'pre_cl']
-    # args = ['./ddueruem.py', 'examples/xml/anyvend.xml', 'examples/xml/npc.xml', '--svo', 'pre_cl']
+    # args = ['./ddueruem.py', f'examples/xml/{feature_model_name}.xml', 'examples/xml/npc.xml', '--svo', 'pre_cl']
     cli.debug('args', args)
 
     files, actions = argparser.parse(args)
 
     cli.debug("files", files)
     cli.debug("actions", actions)
-
+    n = 1
     for file in files:
         # only if files ends with .xml
         parser = parsers.by_filename(file)
@@ -50,17 +51,19 @@ def main2():
         cli.debug(f"CTCs: {ctcs}")
         data = {'FeatureModel': fd, 'CTCs': ctcs, 'by': 'size'}
         format_paths = []
+        # check if .orders file already present
+        order_file_path = str(config.DIR_OUT) + os.path.sep + \
+                          str(file).replace('.xml', f'-pre_cl-{n}.orders').split(os.path.sep)[-1]
+        if Path(order_file_path).is_file():
+            cli.say(f".orders feature model {str(file).replace('.xml', '').split(os.path.sep)[-1]}",
+                    "already present, skipping...")
+            continue
+
         for algo_name in list(map(lambda x: x.__name__, actions['SVO']['algos'])):
             if 'pre_cl' in algo_name:
                 format_paths = bootstrap_pre_cl(config.ROOT + os.path.sep + file)
                 break
 
-        order_file_path = str(config.DIR_OUT) + os.path.sep + \
-                          str(file).replace('.xml', '_DIMACS.dimacs-pre_cl-1.orders').split(os.path.sep)[-1]
-        if Path(order_file_path).is_file():
-            cli.say(f".orders feature model {str(file).replace('.xml', '').split(os.path.sep)[-1]}",
-                    "already present, skipping...")
-            continue
         if len(format_paths) > 0:
             for p in format_paths:
                 if 'dimacs' in p.lower():
@@ -72,7 +75,6 @@ def main2():
             pass
 
         cli.say("Computing static variable orders...")
-        n = 1
         actions["SVO"]["settings"]["n"] = n
         svo.compute(data, actions['SVO'])
         cli.say("Finished static variable ordering.")

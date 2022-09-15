@@ -104,7 +104,15 @@ def store(expr, n, orders_by_svo, settings):
                 content.append(", ".join([str(x) for x in order]))
 
         content = linesep.join(content) + linesep
-        filename = f"{cnf.meta['input-filename']}-{stub}-{n}.orders"
+        if 'pre_cl' in stub:
+            cutting_point = cnf.meta['input-filename'].find('_DIMACS')
+            if cutting_point != -1:
+                filename = f"{cnf.meta['input-filename'][0:cutting_point]}-{stub}-{n}.orders"
+            else:
+                cli.warning('Could not extract model name for saving orders file. Using default naming schema')
+                filename = f"{cnf.meta['input-filename']}-{stub}-{n}.orders"
+        else:
+            filename = f"{cnf.meta['input-filename']}-{stub}-{n}.orders"
         filepath = path.join(config.DIR_OUT, filename)
 
         if path.exists(filepath):
