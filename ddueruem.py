@@ -33,29 +33,29 @@ def main2():
     # args = sys.argv
     name = feature_model_name + '.xml'
     evals = [xml for xml in glob('evaluation/**/*.xml', recursive=True) if '_sxfm' not in str(xml).lower()]
-    args = ['./ddueruem.py'] + evals + ['--svo', 'pre_cl']
+    # args = ['./ddueruem.py'] + evals + ['--svo', 'pre_cl']
     # args = ['./ddueruem.py', 'examples/xml/' + name, '--svo', 'pre_cl']
-    # args = ['./ddueruem.py', f'examples/xml/{feature_model_name}.xml', 'examples/xml/npc.xml', '--svo', 'pre_cl']
+    args = ['./ddueruem.py', f'examples/xml/{feature_model_name}.xml', 'examples/xml/npc.xml', '--svo', 'pre_cl']
     cli.debug('args', args)
 
     files, actions = argparser.parse(args)
 
-    cli.debug("files", files)
-    cli.debug("actions", actions)
+    # cli.debug("files", files)
+    # cli.debug("actions", actions)
     n = 1
     for file in files:
         # only if files ends with .xml
         parser = parsers.by_filename(file)
         fd, ctcs, _ = parser.parse(file)
-        cli.debug(f"Feature Diagram: {fd}")
-        cli.debug(f"CTCs: {ctcs}")
+        # cli.debug(f"Feature Diagram: {fd}")
+        # cli.debug(f"CTCs: {ctcs}")
         data = {'FeatureModel': fd, 'CTCs': ctcs, 'by': 'size'}
         format_paths = []
         # check if .orders file already present
         order_file_path = str(config.DIR_OUT) + os.path.sep + \
                           str(file).replace('.xml', f'-pre_cl-{n}.orders').split(os.path.sep)[-1]
         if Path(order_file_path).is_file():
-            cli.say(f".orders feature model {str(file).replace('.xml', '').split(os.path.sep)[-1]}",
+            cli.say(f".orders file for feature model {str(file).replace('.xml', '').split(os.path.sep)[-1]}",
                     "already present, skipping...")
             continue
 
@@ -78,7 +78,7 @@ def main2():
         actions["SVO"]["settings"]["n"] = n
         svo.compute(data, actions['SVO'])
         cli.say("Finished static variable ordering.")
-        cli.debug("Feature model", data['FeatureModel'])
+        # cli.debug("Feature model", data['FeatureModel'])
     pass
 
 

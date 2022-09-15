@@ -18,8 +18,6 @@ def run_cached(data, id, store, kwargs):
 
 
 def run(data, seed=None, **kwargs):
-    cli.say('------------------------------------------------------------------------------' +
-            '------------------------------------------------------------------------------')
     root = data['FeatureModel'].copy()
     ctcs = data['CTCs'].copy()
     cnf = data['dimacs']
@@ -38,13 +36,6 @@ def run(data, seed=None, **kwargs):
     unique_ctc_features, ecr = calc_ecr(features, ctcs, True)
     ctc_clauses = get_features_from_names(ctcs_as_cnf, features)
 
-    s = f'[INFO]\tFeature Model \'{model_name}\' has:\n' \
-        f'\t{len(features)} feature(s) and {len(ctcs)} CTC(s)\n' \
-        f'\t{len(unique_ctc_features)} unique features occur in CTC(s) (Ratio: {ecr})\n' \
-        f'\tAll CTCs consist of {len(ctc_clauses)} clause(s)'
-    cli.debug(s)
-    cli.debug('\n---------Pre-CL---------')
-    cli.debug('clauses(names)', list(map(lambda cl: list(map(lambda l: l['name'], cl)), ctc_clauses)))
     features_with_cluster = []
     for feature in features:
         feature = feature.copy()
@@ -60,18 +51,11 @@ def run(data, seed=None, **kwargs):
     end_pre_cl = datetime.now()
     # print('Pre-CL-' + str(by), 'ordering is:')
     # print(list(map(lambda x: x['dimacsIdx'], order)))
-    if ddueruem.feature_model_name == 'mendonca_dis':
-        if by == 'size':
-            expected = ['r', 'c', 'i', 'j', 'a', 'd', 'b', 'e', 'g', 'h', 'f', 'l', 'm', 'k', 'n']
-            print('eq?', expected == list(map(lambda x: x['name'], order)), expected)
-        elif by == 'min-span':
-            expected = ['r', 'c', 'i', 'j', 'a', 'b', 'e', 'g', 'h', 'f', 'l', 'm', 'k', 'n', 'd']
-            print('eq?', expected == list(map(lambda x: x['name'], order)), expected)
     if (l_o := len(order)) != (l_v := len(cnf.variables)):
         cli.warning('Order contains', l_o, 'vars from total of', l_v)
     return {
         'order': list(map(lambda x: x['dimacsIdx'], order)),
-        #'features_with_cluster': features_with_cluster,
+        # 'features_with_cluster': features_with_cluster,
         'time_clustering': [start_clustering, end_clustering, end_clustering - start_clustering],
         'time_pre_cl': [start_pre_cl, end_pre_cl, end_pre_cl - start_pre_cl],
         'by': by,
@@ -133,20 +117,15 @@ def pre_cl(feature, features_with_clusters, order, cnf, by='size'):
 
 def _create_clusters(ctc_clauses, root, features_with_cluster):
     for clause in ctc_clauses:
-        cli.debug('---------------------------------CTC--------------------------------------------------')
         pairs = get_distinct_pairs(clause)
         for f1, f2 in pairs:
-            cli.debug('For pair', (f1['name'], f2['name']))
             ancestor = find_lca(f1, f2, root, features_with_cluster)
-            cli.debug('Ancestor is', ancestor['name'])
             cs = ancestor['clusters']
             if len(cs) == 0:
-                cli.debug(f' Initializing cluster for ' + ancestor['name'])
                 cs = _create_initial_cluster(ancestor, features_with_cluster)
             else:
-                cli.debug(f' Reusing cluster for ' + ancestor['name'])
+                pass
             r = roots(f1, f2, ancestor, features_with_cluster)
-            cli.debug('Roots are', list(map(lambda x: x['name'], r)))
             mc = _merge_sharing_elements(cs, r)
             # add relation
             for cl in mc:
@@ -159,16 +138,6 @@ def _create_clusters(ctc_clauses, root, features_with_cluster):
                                                  'relations': list(map(lambda re: list(map(lambda ir: ir['name'], re)),
                                                                        cc['relations']))}, mc))
             ancestor['clusters'] = mc
-            cli.debug("MC", mc_names_only)
-            cli.debug('')
-    # just for pretty printing
-    for f in features_with_cluster:
-        f_clusters = list(f['clusters'])
-        if len(f_clusters) > 0:
-            cli.debug('For feature', f['name'])
-            for c in f_clusters:
-                cli.debug('F:', list(map(lambda x: x['name'], c['features'])),
-                          'R:', list(map(lambda x: list(map(lambda y: y['name'], x)), c['relations'])))
 
     # create cluster for all features with no cluster
     for f in features_with_cluster:
@@ -176,7 +145,6 @@ def _create_clusters(ctc_clauses, root, features_with_cluster):
         if len(f_clusters) == 0:
             _create_initial_cluster(f, features_with_cluster)
 
-    cli.debug('done')
     return features_with_cluster
 
 
@@ -185,7 +153,7 @@ def _create_initial_cluster(feature, features_with_clusters):
     for child in list(feature['children']):
         child = find_feature_by_name(child, features_with_clusters)
         if not child:
-            cli.debug(f"Could not find feature {feature['name']}  in features_with_clusters")
+            cli.error(f"Could not find feature {feature['name']}  in features_with_clusters")
             return []
         cluster = {'features': [child], 'relations': []}
         clusters.append(cluster)
@@ -357,11 +325,11 @@ def find_lca(f1, f2, root, features):
     """find lowest common ancestor of two features. A feature can be an ancestor of itself"""
     path1 = []
     if not _find_path(f1, root, features, path1):
-        cli.error(f'Could not find path in FD for feature {f1}')
+        cli.error(f'Could not find path in FD for feature {f1} with root {root}')
         return
     path2 = []
     if not _find_path(f2, root, features, path2):
-        cli.error(f'Could not find path in FD for feature {f2}')
+        cli.error(f'Could not find path in FD for feature {f2} with root {root}')
         return
     return [f for f in path1 if f in path2][0]
 
