@@ -33,9 +33,10 @@ def main2():
     # args = sys.argv
     name = feature_model_name + '.xml'
     evals = [xml for xml in glob('evaluation/**/*.xml', recursive=True) if '_sxfm' not in str(xml).lower()]
-    # args = ['./ddueruem.py'] + evals + ['--svo', 'pre_cl']
+    evals = [x for x in evals if 'automotive' not in str(x).lower()]
+    args = ['./ddueruem.py'] + evals + ['--svo', 'pre_cl']
     # args = ['./ddueruem.py', 'examples/xml/' + name, '--svo', 'pre_cl']
-    args = ['./ddueruem.py', f'examples/xml/{feature_model_name}.xml', 'examples/xml/npc.xml', '--svo', 'pre_cl']
+    #args = ['./ddueruem.py', f'examples/xml/{feature_model_name}.xml', 'examples/xml/npc.xml', '--svo', 'pre_cl']
     cli.debug('args', args)
 
     files, actions = argparser.parse(args)
@@ -78,7 +79,6 @@ def main2():
         actions["SVO"]["settings"]["n"] = n
         svo.compute(data, actions['SVO'])
         cli.say("Finished static variable ordering.")
-        # cli.debug("Feature model", data['FeatureModel'])
     pass
 
 

@@ -1,10 +1,8 @@
 # ------------------------------------------------------------------------------
 # External imports #-----------------------------------------------------------
-from datetime import datetime, timedelta
+from datetime import datetime
 # External imports #-----------------------------------------------------------
-import ddueruem
 from cli import cli
-from ddueruem import feature_model_name
 from . import force
 
 # ------------------------------------------------------------------------------
@@ -23,7 +21,6 @@ def run(data, seed=None, **kwargs):
     cnf = data['dimacs']
     by = data['by']
     ctcs_as_cnf = data['sxfm'][1]['clauses']
-    model_name = feature_model_name
     features = []
     get_features(root, features)
     # add dimacs IDs for faster translation between FORCE and Pre-CL
@@ -49,8 +46,7 @@ def run(data, seed=None, **kwargs):
     start_pre_cl = datetime.now()
     pre_cl(find_feature_by_name(root['name'], features_with_cluster), features_with_cluster, order, cnf, by)
     end_pre_cl = datetime.now()
-    # print('Pre-CL-' + str(by), 'ordering is:')
-    # print(list(map(lambda x: x['dimacsIdx'], order)))
+
     if (l_o := len(order)) != (l_v := len(cnf.variables)):
         cli.warning('Order contains', l_o, 'vars from total of', l_v)
     return {
@@ -58,6 +54,9 @@ def run(data, seed=None, **kwargs):
         # 'features_with_cluster': features_with_cluster,
         'time_clustering': [start_clustering, end_clustering, end_clustering - start_clustering],
         'time_pre_cl': [start_pre_cl, end_pre_cl, end_pre_cl - start_pre_cl],
+        'vars': len(order),
+        'ctcs': len(ctcs),
+        'clauses': len(ctcs_as_cnf),
         'by': by,
         'ecr': ecr
     }
@@ -95,7 +94,6 @@ def pre_cl(feature, features_with_clusters, order, cnf, by='size'):
                     rearrange = [f]
                 cluster['features'] = new_cluster + [f for f in rearrange if f not in new_cluster]
 
-            # print('ASC by subtree size',list(map(lambda x: (x['name'], get_subtree_size(x, features_with_clusters)), cluster['features'])))
         elif by.lower() == 'min_span':
             # TODO: WIP
             # ['r', 'c', 'i', 'j', 'd', 'a', 'b', 'e', 'g', 'h', 'f', 'l', 'm', 'k', 'n']
@@ -134,9 +132,6 @@ def _create_clusters(ctc_clauses, root, features_with_cluster):
                         cl['relations'] = cl['relations'] + [r]
                         break
 
-            mc_names_only = list(map(lambda cc: {'features': list(map(lambda fe: fe['name'], cc['features'])),
-                                                 'relations': list(map(lambda re: list(map(lambda ir: ir['name'], re)),
-                                                                       cc['relations']))}, mc))
             ancestor['clusters'] = mc
 
     # create cluster for all features with no cluster
@@ -169,26 +164,20 @@ def _merge_sharing_elements(clusters, r):
     nc = {'features': [], 'relations': []}
     to_remove = []
     for cl in clusters:
-        # print('cl', cl)
         for f_in_r in r:
             for f_in_cl in list(cl['features']):
                 if f_in_r == f_in_cl:
-                    # print('FOUND', f_in_r)
-                    # print('old nc', list(nc['features']))
                     nc['features'] = nc['features'] + [f for f in cl['features'] if f not in nc['features']]
                     nc['relations'] = cl['relations']
-                    # print('new nc', list(nc['features']))
                     to_remove.append(cl)
     clusters = [c for c in clusters if c not in to_remove]
     clusters.append(nc)
-    # print(len(clusters), "CS is", clusters)
     return clusters
 
 
 def roots(f1, f2, lca, features):
     """If lca has no children, then the roots of f1 and f2 is [lca]. Otherwise roots is list containing the
      direct children of lca which have a path to f1 or f2, respectively."""
-    # print('f1:', f1['name'], ', f2:', f2['name'], ', lca:', lca['name'])
     children = list(lca['children'])
     out = []
     if len(children) == 0:
@@ -208,7 +197,7 @@ def roots(f1, f2, lca, features):
 # --------------------------------- utils ---------------------------------------------
 def get_features(elem, out=None):
     """
-    returns last processed element and fills out list via side effect with features
+    Returns last processed element and fills out list via side effect with features
     """
     if out is None:
         out = []
@@ -227,6 +216,9 @@ def get_features(elem, out=None):
 
 
 def find_feature_by_name(name, features):
+    """
+    Returns the feature with the given name from the features list or None if it is not in the list.
+    A Feature may look like f = {'name': 'Aa', cluster:[..],...}. The parameter name matches against the name of the f"""
     found = None
     for f in features:
         if f['name'] == name:
@@ -237,8 +229,8 @@ def find_feature_by_name(name, features):
 
 def get_features_from_names(names, features):
     """
-    From [['A','B'],...] to e.g. [{'name':'A', 'children':list()},{'name':'B'..}, ...] or
-    From ['A','B',...] to e.g. [{'name':'A', 'children':list()},{'name':'B'..}, ...]"""
+    From [['A','B'],...] to e.g. [[{'name':'A', 'children':list()}],[{'name':'B'..}], ...] or
+    From ['A','B',...] to e.g. [[{'name':'A', 'children':list()}],[{'name':'B'..}], ...]"""
     # TODO: Optimize this method
     is_list = False
     out = []
@@ -340,6 +332,7 @@ def get_distinct_pairs(clause):
 
 
 def get_cluster_size(cluster, features_with_clusters):
+    """Returns the sum of all (recursive) children cluster sizes"""
     features = list(cluster['features'])
     size = len(features)
     for feature in features:
@@ -348,6 +341,7 @@ def get_cluster_size(cluster, features_with_clusters):
 
 
 def _get_cluster_size(feature, features_with_clusters):
+    """get_cluster_size helper """
     children = list(feature['children'])
     size = 0
     if len(children) > 0:
