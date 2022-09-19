@@ -1,8 +1,8 @@
 #out files
+examples/rawFMs
 evaluation/
 *_formats/
 parsed/
-result/
 
 #Intellij and VSC
 .idea/
