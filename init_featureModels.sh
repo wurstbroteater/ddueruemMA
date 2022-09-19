@@ -1,15 +1,20 @@
 echo "[INFO] Removing old data..."
-rm -rf ../data/FeatureModels
+rm -rf ./examples/rawFMs
 echo "[INFO] Done!"
-# Extract all Feature Models to data/FeatureModels
+# Extract all Feature Models to examples/FeatureModels
 echo "[INFO] Extracting backup files..."
-pushd ../data/backup >/dev/null
-unzip -q featureModels.zip -d ./..
+mkdir -p ./examples/rawFMs
+pushd ./examples/rawFMs >/dev/null
+unzip  -q ../featureModels.zip
+cp -r ./FeatureModels/* .
+rm -rf FeatureModels/
+# model is broken / void
+rm -rf WaterlooGenerated/
 popd >/dev/null
 echo "[INFO] Done!"
 
 echo "[INFO] Preparing models..."
-pushd ../data/FeatureModels >/dev/null
+pushd ./examples/rawFMs >/dev/null
 returnCode=0
 for D in *; do
   if [ -d "${D}" ]; then
@@ -36,8 +41,6 @@ echo "[INFO] Done!"
 echo "[INFO] Moving into ddueruem workspace..."
 rm -rf evaluation/ >/dev/null
 mkdir evaluation
-cp -r ../data/FeatureModels/* evaluation/
-# RAM overflows
-rm -rf evaluation/FinancialServices01
+cp -r ./examples/rawFMs/* evaluation/
 echo "[INFO] Done!"
 echo "----Workspace is prepared!----"
