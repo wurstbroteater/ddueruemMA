@@ -88,6 +88,7 @@ def main2():
         if 'fm_traversal' in svo_name:
             fm_traversal_file_name = str(file).replace('.xml', '').split(os.path.sep)[-1] \
                                      + f'-fm_traversal_{traversal_strategy}.order'
+            cli.say('For Feature Model ' + fm_traversal_file_name)
             fm_traversal_file_path = config.DIR_OUT + os.path.sep + fm_traversal_file_name
             if Path(fm_traversal_file_path).is_file():
                 cli.say(fm_traversal_file_name + ' already present, skipping')
