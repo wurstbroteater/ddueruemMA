@@ -23,7 +23,7 @@ def run(expr, order=None, seed=None, time_run=60, **kwargs):
 
     now = datetime.now()
 
-    while datetime.now() - now < timedelta(seconds=time_run):
+    while True:  # datetime.now() - now < timedelta(seconds=time_run):
         cogs_v = {}
         span_old = span
 

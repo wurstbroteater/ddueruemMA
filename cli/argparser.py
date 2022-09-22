@@ -151,7 +151,7 @@ ACTIONS = {
         "parser": process_svo,
         "defaults": {
             "algos": [],
-            "n": 10,
+            "n": 100,
             "time_run": 60,
             "par": True,
             "seed": None

@@ -116,7 +116,7 @@ def store(expr, n, orders_by_svo, settings):
         filepath = path.join(config.DIR_OUT, filename)
 
         if path.exists(filepath):
-            if not "ignore_existing" in settings:
+            if  "ignore_existing" not in settings:
                 filepath_old = filepath
 
                 filename = f"{cnf.meta['input-filename']}-{stub}-{n}-{util.timestamp()}.orders"
