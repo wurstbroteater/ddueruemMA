@@ -11,6 +11,7 @@ from os import path
 from pathlib import Path
 import sys
 from glob import glob
+from datetime import datetime
 # ------------------------------------------------------------------------------
 # Internal imports #-----------------------------------------------------------
 import config
@@ -93,8 +94,9 @@ def main2():
             if Path(fm_traversal_file_path).is_file():
                 cli.say(fm_traversal_file_name + ' already present, skipping')
                 continue
-
+            start = datetime.now()
             features = fm_traversal.run(data, traversal=traversal_strategy)
+            end = datetime.now()
             for f in features['order']:
                 for f_dimacs in data['dimacs'].variables:
                     # print('Feature', f, 'f_dimacs', f_dimacs)
@@ -102,7 +104,7 @@ def main2():
                         f.update({'dimacsIdx': data['dimacs'].variables[f_dimacs]['ID']})
                         break
             # cli.say('name, id', list(map(lambda x: x['name'] + ', ' + str(x['dimacsIdx']), features['order'])))
-            open(fm_traversal_file_path, 'w').write(str(list(map(lambda x: x['dimacsIdx'], features['order']))))
+            open(fm_traversal_file_path, 'w').write(str({'order': list(map(lambda x: x['dimacsIdx'], features['order'])), 't': end - start}))
         else:
             svo.compute(data, actions["SVO"])
         cli.say("Finished static variable ordering.")
