@@ -57,7 +57,6 @@ def _bf_fm_traversal(node):
     while len(queue) > 0:
         current = queue.pop(0)
         out.append(current)
-        print('current', current['name'])
         children = list(current['children'])
         if len(children) > 0:
             for child in children:
