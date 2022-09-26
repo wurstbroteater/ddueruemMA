@@ -3,11 +3,12 @@ from ctypes import CDLL
 from os import path
 
 # -----------------------------------------------------------------------------#
-
 from cli import cli
+from cli.format import h
 
 
 # -----------------------------------------------------------------------------#
+
 
 class Manager(ABC):
 
@@ -32,7 +33,7 @@ class Manager(ABC):
 
     def load_lib(self, shared_lib, hint_install):
         if not path.exists(shared_lib):
-            error(h(shared_lib, "e"), "not found, please install first with", h(hint_install, "e"))
+            cli.error(cli.highlight(shared_lib, "e"), "not found, please install first with", cli.highlight(hint_install, "e"))
         else:
             return CDLL(f"./{shared_lib}")
 

@@ -57,8 +57,12 @@ def compile(compiler, exprs, context):
 
                     corrupted = False
                     if context["lib_t"] <= 0:
+                        log = []
+                        meta = dict()
+                        meta.update(expr.meta)
+
                         manager = BDD(compiler, dvo)
-                        manager.build_from_CNF(expr, order, bdd_log)
+                        manager.build_from_CNF(expr, order, log, meta)
                     else:
                         pmanager = multiprocessing.Manager()
 
@@ -84,6 +88,7 @@ def compile(compiler, exprs, context):
                         if corrupted:
                             meta["time-bdd-build"] = context["lib_t"]
 
+                    cli.say('Meta', meta)
                     cli.say("BDD bootstrap time:", cli.highlight(meta["time-bdd-bootstrap"]))
 
                     if corrupted:

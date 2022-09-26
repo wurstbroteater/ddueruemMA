@@ -162,7 +162,6 @@ def store(expr, n, orders_by_svo, settings):
 
 
 def parse_orders(filename):
-    order = []
 
     with open(filename, "r") as file:
         raw = file.readlines()

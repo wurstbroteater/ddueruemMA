@@ -187,7 +187,7 @@ def main():
                                 data.update({'sxfm': sxfm_parser.parse(p)})
                             else:
                                 cli.warning("Found suspicious file (format): " + p)
-                    print('For FM', file_name, 'n is', actions['SVO']['settings']['n'])
+                    # print('For FM', file_name, 'n is', actions['SVO']['settings']['n'])
                     svo.compute(data, actions['SVO'])
 
             elif 'fm_traversal' in algo_name:
@@ -247,6 +247,7 @@ def main():
 
         stat_file = path.join(config.DIR_OUT, f"bdd-{util.timestamp()}.csv")
         jinja_renderer.render("bdd", stat_file, bdd_stats)
+        cli.say('Finished computation of BDDs')
         exit()
 
 
