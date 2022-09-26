@@ -12,6 +12,8 @@ import xml.etree.ElementTree as xmlTree
 
 # ------------------------------------------------------------------------------
 # Internal imports #-----------------------------------------------------------
+from pathlib import Path
+
 from cli import cli
 from util.util import hash_hex
 
@@ -19,7 +21,7 @@ from util.util import hash_hex
 # Plugin Properties #----------------------------------------------------------
 STUB = "xml"
 
-name = "XML Feature Model Parser"
+name = "SXFM Feature Model Parser"
 parses = [".xml"]
 
 
@@ -100,6 +102,7 @@ def _parse_element(element, fun=_parse_xml_feature):
     return response
 
 
+# TODO: Use FM from formats
 def parse(file, is_file_path=True):
     """
     If is_file_path is set to True (also per default), the file parameter will be interpreted as
@@ -135,6 +138,7 @@ def parse(file, is_file_path=True):
                 ctcs.update(_parse_element(child, _parse_sxfm_constraint))
     else:
         cli.error('Unable to parse xml because of unknown format')
-    meta = {"input-filename": path.basename(file), "input-filehash": hash_hex(file)}
+
+    meta = {"input-filename": Path(file) if is_file_path else path.basename(file), "input-filehash": hash_hex(file)}
 
     return [feature_dia, ctcs, meta]

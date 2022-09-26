@@ -10,8 +10,9 @@ import re
 # ------------------------------------------------------------------------------
 # Internal imports #-----------------------------------------------------------
 from cli import cli
-
+from bdd import bdd
 from svo import svo
+from usample import usample
 
 # ------------------------------------------------------------------------------
 # RegEx Patterns #-------------------------------------------------------------
@@ -45,18 +46,32 @@ def parse(args):
     files = action_groups[0]
     files = process_files(files)
 
-    for action_group in action_groups[1:]:
-        action = action_group[0]
-        params = action_group[1:]
+    try:
+        i = [x[0] for x in action_groups[1:]].index("--install")
+    except ValueError:
+        i = None
 
-        if action in ACTIONS.keys():
-            parser = ACTIONS[action]["parser"]
+    if i:
 
-            action, details = parser(params)
-            actions[action] = details
+        action = action_groups[i][0]
+        params = action_groups[i][1:]
 
-        else:
-            cli.error("Action", cli.highlight(action), "unknown, ignoring")
+        action, details = parser(params)
+        actions[action] = details
+
+    else:
+        for action_group in action_groups[1:]:
+            action = action_group[0]
+            params = action_group[1:]
+
+            if action in ACTIONS.keys():
+                parser = ACTIONS[action]["parser"]
+
+                action, details = parser(params)
+                actions[action] = details
+
+            else:
+                cli.error("Action", cli.highlight(action), "unknown, ignoring")
 
     return files, actions
 
@@ -70,7 +85,7 @@ def process_files(files):
         elif not path.isfile(file):
             cli.say(cli.highlight(file), "is not a file, disregarded.")
         else:
-            good_files.append(file)
+            good_files.append(path.abspath(file))
 
     return good_files
 
@@ -101,7 +116,8 @@ def process_svo(params):
 
         else:
             algo = svo.by_stub(param.lower())
-
+            print('algo', algo)
+            print('param', param.lower())
             if algo:
                 algos.append(algo)
             else:
@@ -119,7 +135,120 @@ def process_svo(params):
 
 
 def process_bdd(params):
-    raise NotImplementedError()
+    settings = ACTIONS["--bdd"]["defaults"]
+
+    algos = []
+
+    for algo in settings["compilers"]:
+        if isinstance(algo, str):
+            algo = usample.by_stub(algo)
+
+            if algo:
+                algos.append(algo)
+
+    settings.pop("compilers")
+
+    for param in params:
+
+        if m := P_action_param.match(param):
+            k = m["key"]
+            v = m["value"]
+
+            v = ensure_same_type(settings[k], v)
+
+            settings[k] = v
+
+        else:
+            algo = bdd.by_stub(param)
+
+            if algo:
+                algos.append(algo)
+            else:
+                if param in settings:
+                    settings[param] = True
+                else:
+                    cli.warning("Parameter", cli.highlight(param),
+                                "is neither a registered sampler nor configurable parameter, ignoring.",
+                                origin="argparser[--svo]")
+
+    return "BDD", {
+        "compilers": algos,
+        "settings": settings
+    }
+
+
+def process_usample(params):
+    settings = ACTIONS["--usample"]["defaults"]
+
+    algos = []
+
+    for algo in settings["algos"]:
+        if isinstance(algo, str):
+            algo = usample.by_stub(algo)
+
+            if algo:
+                algos.append(algo)
+
+    settings.pop("algos")
+
+    for param in params:
+
+        if m := P_action_param.match(param):
+            k = m["key"]
+            v = m["value"]
+
+            v = ensure_same_type(settings[k], v)
+
+            settings[k] = v
+
+        else:
+            algo = usample.by_stub(param)
+
+            if algo:
+                algos.append(algo)
+            else:
+                if param in settings:
+                    settings[param] = True
+                else:
+                    cli.warning("Parameter", cli.highlight(param),
+                                "is neither a registered sampler nor configurable parameter, ignoring.",
+                                origin="argparser[--svo]")
+
+    return "USAMPLE", {
+        "algos": algos,
+        "settings": settings
+    }
+
+
+def process_install(params):
+    tools_available = dict()
+
+    tools_available.update(bdd.plugins)
+    tools_available.update(usample.plugins)
+
+    tools = []
+
+    for x in params:
+
+        x = x.lower()
+
+        if x == "bdd":
+            tools.extend(bdd.plugins).values()
+        elif x == "nnf":
+            tools.extend(nnf.plugins).values()
+        elif x == "usample":
+            tools.extend(usample.plugins).values()
+        else:
+            if x in tools_available:
+                tools.append(tools_available[x])
+
+    return "INSTALL", {
+        "tools": tools
+    }
+
+
+def process_analysis(params):
+    return "ANALYZE", {}
 
 
 def ensure_same_type(old, new):
@@ -134,6 +263,9 @@ def ensure_same_type(old, new):
 
     if old_type == int:
         return int(new)
+
+    if old_type == list:
+        return re.split(",", new)
 
     if old_type == bool:
         if new.lower() in ["true", "1", "t"]:
@@ -151,7 +283,7 @@ ACTIONS = {
         "parser": process_svo,
         "defaults": {
             "algos": [],
-            "n": 100,
+            "n": 10,
             "time_run": 60,
             "par": True,
             "seed": None
@@ -159,6 +291,30 @@ ACTIONS = {
     },
     "--bdd": {
         "desc": "Compute binary decision diagrams for input files",
-        "parser": process_bdd
+        "parser": process_bdd,
+        "defaults": {
+            "compilers": [bdd.by_stub("cudd")],
+            "svo": [svo.by_stub("force")],
+            "dvo": ["sift"],
+            "lib_t": 60
+        }
+    },
+    "--usample": {
+        "desc": "Compute uniform samples for input files",
+        "parser": process_usample,
+        "defaults": {
+            "algos": [],
+            "n": 10,
+            "timeout": 60,
+            "par": True
+        }
+    },
+    "--install": {
+        "desc": "Install tools",
+        "parser": process_install
+    },
+    "--analyze": {
+        "desc": "Analyze the model",
+        "parser": process_analysis
     }
 }

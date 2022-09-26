@@ -2,15 +2,15 @@
 This file provides default configuration values.
 """
 
+import pathlib
 # ------------------------------------------------------------------------------
 # External imports #-----------------------------------------------------------
 from os import path
-import pathlib
+
 # ------------------------------------------------------------------------------
 
 
 # Directories
-#ROOT = "/home/eric/Uni/MA/ddueruemMA"
 ROOT = str(pathlib.Path(__file__).parent)
 DIR_ROOT = path.join(ROOT, "parsed")
 DIR_ARCHIVES = path.join(DIR_ROOT, "archives")
@@ -21,3 +21,5 @@ DIR_OUT = path.join(DIR_ROOT, "out")
 # Command-Line Interface
 DEBUG = False
 SILENT = False
+
+# TODO: Suppress subprocess out

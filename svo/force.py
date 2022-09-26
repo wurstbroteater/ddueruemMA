@@ -13,18 +13,29 @@ def run_cached(expr, id, store, kwargs):
     store[id] = run(expr, **kwargs)
 
 
-def run(expr, order=None, seed=None, time_run=60, **kwargs):
+def run(expr, order=None, seed=None, time_run=60, collect_dists=False, **kwargs):
+    now = datetime.now()
+
     if not order:
         order = random.run(expr, seed)["order"]
 
     clauses = expr.clauses
-
     span = compute_span(clauses, order)
+    dist = compute_inner_dists(clauses, order)
 
-    now = datetime.now()
+    orders = [order]
+    times = [datetime.now() - now]
 
-    while True:  # datetime.now() - now < timedelta(seconds=time_run):
-        cogs_v = {}
+    spans = [span]
+    dists = [dist]
+
+    while datetime.now() - now < timedelta(seconds=time_run):
+        n_variables = expr.get_no_variables()
+
+        # +1 as indizes start at 1
+        cogs_vc = [0] * (n_variables + 1)
+        cogs_vn = [0] * (n_variables + 1)
+
         span_old = span
 
         for i, clause in enumerate(clauses):
@@ -32,30 +43,50 @@ def run(expr, order=None, seed=None, time_run=60, **kwargs):
 
             for x in clause:
                 x = abs(x)
-                if x in cogs_v:
-                    a, b = cogs_v[x]
-                    cogs_v[x] = (a + cogs, b + 1)
-                else:
-                    cogs_v[x] = (cogs, 1)
+
+                cogs_vc[x] += cogs
+                cogs_vn[x] += 1
 
         tlocs = []
-        for key, value in cogs_v.items():
-            center, n = value
-            tlocs.append((key, center / n))
+
+        for i in range(n_variables):
+            j = i + 1
+
+            center = cogs_vc[j]
+            n = cogs_vn[j]
+
+            if n > 0:
+                tlocs.append((j, center / n))
 
         tlocs = sorted(tlocs, key=lambda x: x[1])
 
         order = [x[0] for x in tlocs]
+
+        times.append(datetime.now() - now)
+
+        orders.append(order)
+
         span = compute_span(clauses, order)
+        spans.append(span)
+
+        if collect_dists:
+            dist = compute_inner_dists(clauses, order)
+            dists.append(dist)
 
         if span_old == span:
-            break
+            break;
 
-    return {
+    out = {
         "order": order,
-        "span": span,
-        "dist": sum(compute_inner_dists(clauses, order))
+        "orders": orders,
+        "spans": spans,
+        "times": times
     }
+
+    if collect_dists:
+        out["dists"] = dists
+
+    return out
 
 
 def compute_cog(clause, order):
@@ -68,6 +99,7 @@ def compute_span(clauses, order):
     span = []
     for clause in clauses:
         lspan = 0
+
         indizes = [order.index(abs(x)) for x in clause]
         lspan = max(indizes) - min(indizes)
 
@@ -77,7 +109,7 @@ def compute_span(clauses, order):
 
 
 def compute_inner_dists(clauses, order):
-    inner_dists = []
+    inner_dists = 0
 
     for clause in clauses:
 
@@ -90,6 +122,6 @@ def compute_inner_dists(clauses, order):
                 y = abs(y)
                 dist += abs(order.index(x) - order.index(y))
 
-        inner_dists.append(dist)
+        inner_dists += dist
 
     return inner_dists

@@ -46,6 +46,7 @@ def parse(filename, remove_tautologies=True):
     meta = {}
 
     meta["input-filename"] = path.basename(filename)
+    meta["input-filepath"] = filename
     meta["input-filehash"] = hash_hex(filename)
 
     with open(filename) as file:
