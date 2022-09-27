@@ -14,8 +14,12 @@ from svo import svo
 STUB = "order"
 
 name = "Order(s) Parser"
-parses = [".aorder", ".aorders"]
+parses = [".order", ".orders"]
 
 
 def parse(file):
-    return svo.parse_orders(file)
+    out = []
+    o = svo.parse_orders(file)
+    for nested in o:
+        out.append(nested)
+    return out

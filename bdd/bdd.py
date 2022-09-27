@@ -32,76 +32,125 @@ def compile(compiler, exprs, context):
     context = context["settings"]
     dvos = context["dvo"]
 
-    for expr in exprs:
-        # print(expr)
-        # info_compile(expr, compiler, context)
+    if isinstance(exprs, dict):
+        for order in exprs['orders']:
+            for dvo in dvos:
+                print(f"Compiling with DVO set to:", dvo)
+                corrupted = False
+                if context["lib_t"] <= 0:
+                    log = []
+                    meta = dict()
+                    meta.update(exprs['meta'])
 
-        if not hasattr(expr, "orders"):
-            cli.say("No precomputed variable orders found, taking order from input.")
-            order = asc_by_id(expr)
+                    manager = BDD(compiler, dvo)
+                    manager.build_from_CNF(exprs['dimacs'], order, log, meta)
+                else:
+                    pmanager = multiprocessing.Manager()
 
-            expr.orders = {}
-            expr.orders["none"] = [order]
+                    log = pmanager.list()
+                    meta = pmanager.dict()
 
-        for svo_stub, orders in expr.orders.items():
-            print(f"Using variable orders computed with", svo_stub)
+                    meta.update(exprs['meta'])
 
-            if isinstance(orders, list):
-                pass
-            else:
-                orders = svo.parse_orders(orders)
+                    p = multiprocessing.Process(target=compile_threaded,
+                                                args=(compiler, dvo, exprs['dimacs'], order, log, meta))
 
-            for order in orders:
-                for dvo in dvos:
-                    print(f"Compiling with DVO set to:", dvo)
+                    p.start()
+                    p.join(context["lib_t"])
 
-                    corrupted = False
-                    if context["lib_t"] <= 0:
-                        log = []
-                        meta = dict()
-                        meta.update(expr.meta)
+                    if p.is_alive():
+                        corrupted = True
+                        p.terminate()
+                        p.kill()
 
-                        manager = BDD(compiler, dvo)
-                        manager.build_from_CNF(expr, order, log, meta)
-                    else:
-                        pmanager = multiprocessing.Manager()
-
-                        log = pmanager.list()
-                        meta = pmanager.dict()
-
-                        meta.update(expr.meta)
-
-                        p = multiprocessing.Process(target=compile_threaded,
-                                                    args=(compiler, dvo, expr, order, log, meta))
-
-                        p.start()
-                        p.join(context["lib_t"])
-
-                        if p.is_alive():
-                            corrupted = True
-                            p.terminate()
-                            p.kill()
-
-                        bdd_log = list(log)
-                        # print(bdd_log)
-
-                        if corrupted:
-                            meta["time-bdd-build"] = context["lib_t"]
-
-                    cli.say('Meta', meta)
-                    cli.say("BDD bootstrap time:", cli.highlight(meta["time-bdd-bootstrap"]))
+                    bdd_log = list(log)
+                    # print(bdd_log)
 
                     if corrupted:
-                        cli.say(f"BDD compilation reached timeout.")
-                    else:
-                        cli.say("BDD building time:", cli.highlight(meta["time-bdd-build"]))
+                        meta["time-bdd-build"] = context["lib_t"]
 
-                    meta = dict(meta)
-                    meta["svo"] = svo_stub
+                #bcli.say('Meta', meta)
+                cli.say("BDD bootstrap time:", cli.highlight(meta["time-bdd-bootstrap"]))
 
-                    stats.append(meta)
-                    cli.say()
+                if corrupted:
+                    cli.say(f"BDD compilation reached timeout.")
+                else:
+                    cli.say("BDD building time:", cli.highlight(meta["time-bdd-build"]))
 
+                meta = dict(meta)
+                meta["svo"] = None
+
+                stats.append(meta)
+                cli.say()
+    else:
+        for expr in exprs:
+            # print(expr)
+            # info_compile(expr, compiler, context)
+
+            if not hasattr(expr, "orders"):
+                cli.say("No precomputed variable orders found, taking order from input.")
+                order = asc_by_id(expr)
+
+                expr.orders = {}
+                expr.orders["none"] = [order]
+            for svo_stub, orders in expr.orders.items():
+                print(f"Using variable orders computed with", svo_stub)
+
+                if isinstance(orders, list):
+                    pass
+                else:
+                    orders = svo.parse_orders(orders)
+
+                for order in orders:
+                    for dvo in dvos:
+                        print(f"Compiling with DVO set to:", dvo)
+
+                        corrupted = False
+                        if context["lib_t"] <= 0:
+                            log = []
+                            meta = dict()
+                            meta.update(expr.meta)
+
+                            manager = BDD(compiler, dvo)
+                            manager.build_from_CNF(expr, order, log, meta)
+                        else:
+                            pmanager = multiprocessing.Manager()
+
+                            log = pmanager.list()
+                            meta = pmanager.dict()
+
+                            meta.update(expr.meta)
+
+                            p = multiprocessing.Process(target=compile_threaded,
+                                                        args=(compiler, dvo, expr, order, log, meta))
+
+                            p.start()
+                            p.join(context["lib_t"])
+
+                            if p.is_alive():
+                                corrupted = True
+                                p.terminate()
+                                p.kill()
+
+                            bdd_log = list(log)
+                            # print(bdd_log)
+
+                            if corrupted:
+                                meta["time-bdd-build"] = context["lib_t"]
+
+                        cli.say('Meta', meta)
+                        cli.say("BDD bootstrap time:", cli.highlight(meta["time-bdd-bootstrap"]))
+
+                        if corrupted:
+                            cli.say(f"BDD compilation reached timeout.")
+                        else:
+                            cli.say("BDD building time:", cli.highlight(meta["time-bdd-build"]))
+
+                        meta = dict(meta)
+                        meta["svo"] = svo_stub
+
+                        stats.append(meta)
+                        cli.say()
     return stats
 
 
@@ -188,6 +237,7 @@ class BDD():
         log = list(log)
         _, _, _, _, dvo_time = log[-1]
         meta["time-dvo"] = dvo_time
+        meta["bdd-nodes"] = self.mgr.size_(bdd)
         self.bdd = bdd
 
 

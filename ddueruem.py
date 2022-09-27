@@ -15,6 +15,8 @@ from pathlib import Path
 from datetime import datetime
 # ------------------------------------------------------------------------------
 # Internal imports #-----------------------------------------------------------
+from pprint import pprint
+
 import config
 from bdd import bdd
 from svo import svo, fm_traversal
@@ -23,7 +25,6 @@ from cli import cli, argparser
 from util import plugin, util, jinja_renderer
 from parsers import parsers, sxfm_parser, dimacs
 
-
 # ------------------------------------------------------------------------------
 # feature_model_name = 'busybox1dot18dot0'
 # feature_model_name = 'npc'
@@ -31,6 +32,7 @@ from parsers import parsers, sxfm_parser, dimacs
 # feature_model_name = 'finSer01'
 # feature_model_name = 'automotiv2v4'
 feature_model_name = 'mendonca_dis'
+
 
 def main():
     bootstrap()
@@ -48,6 +50,14 @@ def main():
     # args = ['./ddueruem.py', f'examples/xml/{feature_model_name}.xml', 'examples/xml/npc.xml', '--svo', svo_name]
     cli.debug(args)
     files, actions = argparser.parse(args)
+    # TODO: There is no possibility for just building BDDS
+    # ./ddueruem.py <file> --bdd cudd lib_t:-1 dvo:off results in the following actions:
+    # {'compilers': [<module 'bdd.cudd' from '/home/eric/Uni/MA/ddueruemMA/bdd/cudd.py'>], 'settings': {'svo': [<module 'svo.force' from '/home/eric/Uni/MA/ddueruemMA/svo/force.py'>], 'dvo': ['off'], 'lib_t': -1}}
+    # workaround: Remove svo module if --svo is not in args
+    no_svo = False
+    if '--svo' not in args:
+        actions['BDD']['settings'].update({'svo': []})
+        no_svo = True
 
     cli.debug("files", files)
     cli.debug("actions", actions)
@@ -160,7 +170,7 @@ def main():
 
         exit()
 
-    if "SVO" in actions:
+    if not no_svo and "SVO" in actions:
         # for fm_traversal strategy is 'df','bf' 'pre', 'in' or 'post'
         # for pre_cl strategy is 'size' or 'min_span'
         traversal_strategy = 'size'
@@ -213,9 +223,6 @@ def main():
                     if Path(fm_traversal_file_path).is_file():
                         cli.say(fm_traversal_file_name + ' already present, skipping')
                         continue
-
-                    print('data', data['dimacs'].variables)
-                    print('feature model', data['FeatureModel'])
                     start = datetime.now()
                     # TODO: Change saving computed order to use svo.compute
                     # svo.compute(data, actions['SVO'])
@@ -240,13 +247,35 @@ def main():
     bdd_stats = []
     if "BDD" in actions:
         cli.say("Computing BDDs")
+        for expr in exprs:
+            in_file = Path(expr[2]['input-filename'])
+            cli.say(f"For Model {in_file.name.replace('.xml', '')}")
+            for compiler in actions["BDD"]["compilers"]:
+                # expr[0] should be list containing int lists
+                suffix = '-pre_cl-1.orders'  # '_DIMACS.dimacs-force-10.orders'
+                orders_filepath = Path(config.DIR_OUT + os.path.sep + in_file.name.replace('.xml', '') + suffix)
+                if not orders_filepath.is_file():
+                    cli.error('Could not find orders file: ' + str(orders_filepath))
+                    return
+                dimacs_filepath = Path(
+                    f"{str(in_file.parent)}{os.path.sep}{in_file.name.replace('.xml', '')}_formats{os.path.sep}{in_file.name.replace('.xml', '')}_DIMACS.dimacs")
+                if not dimacs_filepath.is_file():
+                    cli.warning('Dimacs file not present, creating in: ' + str(dimacs_filepath))
+                    dimacs_filepath = bootstrap_bdd_creation(str(in_file))[0]
+                attributed_expr = {
+                    'dimacs': dimacs.parse(dimacs_filepath),
+                    'orders': svo.parse_orders(str(orders_filepath)),
+                    'meta': expr[2]}
+                stats = bdd.compile(compiler, attributed_expr, actions["BDD"])
+                bdd_stats.extend(stats)
 
-        for compiler in actions["BDD"]["compilers"]:
-            stats = bdd.compile(compiler, exprs, actions["BDD"])
-            bdd_stats.extend(stats)
-
-        stat_file = path.join(config.DIR_OUT, f"bdd-{util.timestamp()}.csv")
-        jinja_renderer.render("bdd", stat_file, bdd_stats)
+            bdd_filename = f"{in_file.name.replace('.xml', '')}-bdd.csv"
+            if Path(config.DIR_OUT + os.path.sep +  bdd_filename).is_file():
+                cli.say(config.DIR_OUT + os.path.sep + bdd_filename + ' already exists, saving with timestamp')
+                bdd_filename = f"{in_file.name.replace('.xml', '')}-bdd-{util.timestamp()}.csv"
+            stat_file = path.join(config.DIR_OUT, bdd_filename)
+            jinja_renderer.render("svoeval", stat_file, bdd_stats)
+            bdd_stats = []
         cli.say('Finished computation of BDDs')
         exit()
 
@@ -258,6 +287,39 @@ def bootstrap():
     for dir in dirs:
         verify_or_create_dir(dir)
 
+
+def bootstrap_bdd_creation(file_path):
+    """
+    Check if all file formats are present. This follows a certain pattern:
+        E.g. for file_path = config.ROOT/home/foo/<model name>.xml
+        Check if folder config.ROOT/home/foo/<model name>_formats/ exist then check
+          if this folder contains files named like <model name>_DIMACS.dimacs
+            If this file is not present, it will be created
+    """
+    file_path = file_path
+    file_name = file_path.split(os.path.sep)[-1]
+    formats_dir = file_path.replace(file_name, '') + f"{file_name.replace('.xml', '')}_formats"
+    verify_or_create_dir(formats_dir)
+    prefix = formats_dir + os.path.sep + file_name.replace('.xml', '')
+    expected_folder_content = [prefix + '_DIMACS.dimacs']
+    formats = []
+    for format_path in expected_folder_content:
+        p = Path(format_path)
+        if p.is_file():
+            continue
+        elif not p.is_file() and not p.is_dir():
+            if 'dimacs' in format_path.lower():
+                formats.append('dimacs')
+
+    if len(formats) > 0:
+        cli.say('Creating formats', formats)
+        if e := util.translate_xml(file_path, formats_dir, formats) != "Successfully translated to all formats!":
+            cli.error(f"Could not create all formats for model {file_name.replace('.xml', '')}: {e}")
+            return
+
+    else:
+        cli.say('All formats already present')
+    return expected_folder_content
 
 def bootstrap_fm_traversal(file_path):
     """
