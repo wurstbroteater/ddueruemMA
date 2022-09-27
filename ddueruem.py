@@ -57,7 +57,10 @@ def main():
     # workaround: Remove svo module if --svo is not in args
     no_svo = False
     if '--svo' not in args:
-        actions['BDD']['settings'].update({'svo': []})
+        try:
+            actions['BDD']['settings'].update({'svo': []})
+        except KeyError:
+            pass
         no_svo = True
 
     cli.debug("files", files)
