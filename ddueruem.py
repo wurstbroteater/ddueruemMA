@@ -10,6 +10,7 @@ import os
 import re
 import subprocess
 import sys
+from glob import glob
 from os import linesep, path
 from pathlib import Path
 from datetime import datetime
@@ -36,16 +37,16 @@ feature_model_name = 'mendonca_dis'
 
 def main():
     bootstrap()
-    args = sys.argv
-
-    name = feature_model_name + '.xml'
+    #args = sys.argv
+    #name = feature_model_name + '.xml'
     # svo_name = 'pre_cl'
     # traversal_strategy = 'size'
-    svo_name = 'fm_traversal'
+    #svo_name = 'fm_traversal'
     # traversal_strategy = 'bf'
-    # evals = [xml for xml in glob('evaluation/**/*.xml', recursive=True) if '_sxfm' not in str(xml).lower()]
-    # evals = [x for x in evals if 'automotive' not in str(x).lower()]
-    # args = ['./ddueruem.py'] + evals + ['--svo', svo_name]
+    evals = [xml for xml in glob('evaluation/**/*.xml', recursive=True) if '_sxfm' not in str(xml).lower()]
+    evals = [x for x in evals if 'automotive' not in str(x).lower()]
+    evals = [x for x in evals if 'linux_2.6' not in str(x).lower()]
+    args = ['./ddueruem.py'] + evals + ['--bdd', 'cudd', 'lib_t:-1', 'dvo:off'] # ['--svo', svo_name]
     # args = ['./ddueruem.py', 'examples/xml/' + name, '--svo', svo_name]
     # args = ['./ddueruem.py', f'examples/xml/{feature_model_name}.xml', 'examples/xml/npc.xml', '--svo', svo_name]
     cli.debug(args)
