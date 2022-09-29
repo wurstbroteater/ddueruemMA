@@ -4,6 +4,7 @@ from datetime import datetime
 import pprint
 # External imports #-----------------------------------------------------------
 from cli import cli
+from util.formats import CNF
 from . import force
 
 # ------------------------------------------------------------------------------
@@ -20,7 +21,7 @@ def run(data, seed=None, **kwargs):
     root = data['FeatureModel'].copy()
     ctcs = data['CTCs'].copy()
     cnf = data['dimacs']
-    by = data['by']
+    by = 'min_span'  # 'size'  # 'min_span'  # data['by']
     ctcs_as_cnf = data['sxfm'][1]['clauses']
     features = []
     get_features(root, features)
@@ -48,25 +49,33 @@ def run(data, seed=None, **kwargs):
     pre_cl(find_feature_by_name(root['name'], features_with_cluster), features_with_cluster, order, cnf, by)
     end_pre_cl = datetime.now()
 
+    if by == 'size':
+        print('order', ['r', 'c', 'i', 'j', 'a', 'd', 'b', 'e', 'g', 'h', 'f', 'l', 'm', 'k', 'n'] == list(
+            map(lambda x: x['name'], order)), list(map(lambda x: x['name'], order)))
+        cli.say(print_clusters(features_with_cluster, False))
+    if by == 'min_span':
+        print('order', ['r', 'c', 'i', 'j', 'a', 'b', 'e', 'g', 'h', 'f', 'l', 'm', 'k', 'n', 'd'] == list(
+            map(lambda x: x['name'], order)), list(map(lambda x: x['name'], order)))
+
     if (l_o := len(order)) != (l_v := len(cnf.variables)):
         cli.warning('Order contains', l_o, 'vars from total of', l_v)
+
     return {
         'order': list(map(lambda x: x['dimacsIdx'], order)),
-        # 'features_with_cluster': features_with_cluster,
         'time_clustering': [start_clustering, end_clustering, end_clustering - start_clustering],
         'time_pre_cl': [start_pre_cl, end_pre_cl, end_pre_cl - start_pre_cl],
         'vars': len(order),
         'ctcs': len(ctcs),
         'clauses': len(ctcs_as_cnf),
         'by': by,
-        'ecr': ecr
+        'ecr': ecr,
+        'clusters': print_clusters(features_with_cluster, False).replace('\n', '--')
     }
 
 
 def pre_cl(feature, features_with_clusters, order, cnf, by='size'):
     order.append(feature)
     f_clusters = list(feature['clusters'])
-    # print('Feature', feature['name'], 'has', len(f_clusters), 'cluster(s)')
     # ASC sort by cluster size
     f_clusters.sort(key=lambda x: get_cluster_size(x, features_with_clusters), reverse=False)
     # by = 'min_span'
@@ -97,18 +106,53 @@ def pre_cl(feature, features_with_clusters, order, cnf, by='size'):
                 cluster['features'] = new_cluster + [f for f in rearrange if f not in new_cluster]
 
         elif by.lower() == 'min_span':
-            # TODO: WIP
-            # ['r', 'c', 'i', 'j', 'd', 'a', 'b', 'e', 'g', 'h', 'f', 'l', 'm', 'k', 'n']
-            # order = [1, 12, 13, 14, 15, 2, 3, 4, 10, 11, 5, 7, 8, 6, 9]
-            print()
-            # order = [1, 12, 13, 14, 15, 2, 3, 4, 10, 11, 5, 7, 8, 6, 9]
-            print('min_span')
-            pp = pprint.PrettyPrinter(depth=6)
-            print('Iteration', iteration, 'Feature', list(map(lambda x: x['name'], order)), 'Relations',
-                  order[0]['clusters'][0]['relations'])
-            # order = force.run(cnf, order)
-            # print('force', order)
-            iteration += 1
+            # Create necessary data structure for class CNF
+            if len(cluster['relations']) > 0:
+                # sorted according to dimacsIdx to reflect hierarchy
+                cluster['features'] = sorted(cluster['features'], key=lambda x: x['dimacsIdx'], reverse=False)
+                cnf_vars = {}
+                for i_f, f in enumerate(cluster['features']):
+                    cnf_vars[str(i_f + 1)] = {'ID': i_f + 1, 'desc': f['name']}
+
+                cnf_clauses = []
+                for r in cluster['relations']:
+                    cl = []
+                    for f_name in list(map(lambda x: x['name'], r)):
+                        id = '-1'
+                        for k in cnf_vars:
+                            if f_name == cnf_vars[k]['desc']:
+                                id = cnf_vars[k]['ID']
+                                break
+                        if id == -1:
+                            cli.error('Could not find feature with name ' + f_name + ' in cnf_vars')
+                            return
+                        cl.append(id)
+                    cnf_clauses.append(cl)
+
+                force_order = []
+                for f_name in list(map(lambda x: x['name'], cluster['features'])):
+                    id = -1
+                    for k in cnf_vars:
+                        if f_name == cnf_vars[k]['desc']:
+                            id = cnf_vars[k]['ID']
+                            break
+                    if id == -1:
+                        cli.error('Could not find feature with name ' + f_name + ' in cnf_vars')
+                        return
+                    force_order.append(id)
+                # This cnf does not have negated literals.
+                # This is fine because we just want to reflect relatedness of variables
+                fo = force.run(expr=CNF(clauses=cnf_clauses, variables=cnf_vars), order=force_order, time_run=-1)[
+                    'order']
+
+                # IDs to feature names
+                fo_names = []
+                for v_id in fo:
+                    for k in cnf_vars:
+                        if cnf_vars[k]['ID'] == v_id:
+                            fo_names.append(cnf_vars[k]['desc'])
+                            break
+                cluster['features'] = list(map(lambda x: find_feature_by_name(x, features_with_clusters), fo_names))
         else:
             cli.error(f'Unknown sorting strategy: {by}')
             return
@@ -368,3 +412,30 @@ def get_subtree_size(feature, features_with_clusters):
             child = find_feature_by_name(child, features_with_clusters)
             size = size + get_subtree_size(child, features_with_clusters)
     return size
+
+
+def print_clusters(features_with_clusters, print_it=True):
+    """
+    The respective clusters for every feature are printed only with feature names.
+    If print_it is set to False the method just returns the String.
+    Example: Feature x has two clusters, one with the the variables a,b and one with c.
+        The output could looks like
+    cluster-x1: F={ a, b }, R={ [a, b] }
+    cluster-x2: F={ c }, R={ }
+    """
+    out = ''
+    for f in features_with_clusters:
+        for i_c, c in enumerate(f['clusters']):
+            out += 'cluster-' + f['name'] + str(i_c + 1) + '= F={ '
+            for i_cf, cf in enumerate(c['features']):
+                out += cf['name'] + (', ' if i_cf != len(c['features']) - 1 else '')
+            out += ' }, R={ '
+            for i_cr, cr in enumerate(c['relations']):
+                out += str(list(map(lambda x: x['name'], cr))).replace('\'', '') + (
+                    ', ' if i_cr != len(c['relations']) - 1 else '')
+            out += ' }\n'
+    # normalize whitespaces (this also removes \n, so we have to add it again)
+    out = " ".join(out.split()).replace('} c', '}\nc')
+    if print_it:
+        print(out)
+    return out
