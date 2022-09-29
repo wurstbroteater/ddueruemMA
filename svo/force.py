@@ -29,7 +29,7 @@ def run(expr, order=None, seed=None, time_run=60, collect_dists=False, **kwargs)
     spans = [span]
     dists = [dist]
 
-    while datetime.now() - now < timedelta(seconds=time_run):
+    while datetime.now() - now < timedelta(seconds=time_run) if time_run != -1 else True:
         n_variables = expr.get_no_variables()
 
         # +1 as indizes start at 1

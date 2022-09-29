@@ -37,7 +37,7 @@ feature_model_name = 'mendonca_dis'
 
 def main():
     bootstrap()
-    # args = sys.argv
+    args = sys.argv
     name = feature_model_name + '.xml'
     svo_name = 'pre_cl'
     # traversal_strategy = 'size'
@@ -47,7 +47,7 @@ def main():
     evals = [x for x in evals if 'automotive' not in str(x).lower()]
     evals = [x for x in evals if 'linux_2.6' not in str(x).lower()]
     evals = sorted(evals, key=lambda ef: os.stat(ef).st_size)
-    args = ['./ddueruem.py'] + evals + ['--bdd', 'cudd', 'lib_t:-1', 'dvo:off']  # ['--svo', svo_name]
+    #args = ['./ddueruem.py'] + evals + ['--bdd', 'cudd', 'lib_t:-1', 'dvo:off']  # ['--svo', svo_name]
     # args = ['./ddueruem.py', 'examples/xml/' + name, '--bdd', 'cudd', 'lib_t:-1', 'dvo:off']  # '--svo', svo_name]
     # args = ['./ddueruem.py', f'examples/xml/{feature_model_name}.xml', 'examples/xml/npc.xml', '--svo', svo_name]
     cli.debug(args)
