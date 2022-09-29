@@ -49,14 +49,6 @@ def run(data, seed=None, **kwargs):
     pre_cl(find_feature_by_name(root['name'], features_with_cluster), features_with_cluster, order, cnf, by)
     end_pre_cl = datetime.now()
 
-    if by == 'size':
-        print('order', ['r', 'c', 'i', 'j', 'a', 'd', 'b', 'e', 'g', 'h', 'f', 'l', 'm', 'k', 'n'] == list(
-            map(lambda x: x['name'], order)), list(map(lambda x: x['name'], order)))
-        cli.say(print_clusters(features_with_cluster, False))
-    if by == 'min_span':
-        print('order', ['r', 'c', 'i', 'j', 'a', 'b', 'e', 'g', 'h', 'f', 'l', 'm', 'k', 'n', 'd'] == list(
-            map(lambda x: x['name'], order)), list(map(lambda x: x['name'], order)))
-
     if (l_o := len(order)) != (l_v := len(cnf.variables)):
         cli.warning('Order contains', l_o, 'vars from total of', l_v)
 
