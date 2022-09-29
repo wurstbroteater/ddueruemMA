@@ -1,0 +1,4 @@
+input_file;input_hash;sample_tool;sample_size;output_file;kc_lang;kc_time;time_total
+{% for entry in data -%}
+{{entry.input_file}};{{entry.input_hash}};{{entry.sample_tool}};{{entry.sample_size}};{{entry.output_file}};{{entry.kc_lang}};{{entry.kc_time}};{{entry.time_total}}
+{% endfor %}

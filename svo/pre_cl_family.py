@@ -1,6 +1,7 @@
 # ------------------------------------------------------------------------------
 # External imports #-----------------------------------------------------------
 from datetime import datetime
+import pprint
 # External imports #-----------------------------------------------------------
 from cli import cli
 from . import force
@@ -68,7 +69,8 @@ def pre_cl(feature, features_with_clusters, order, cnf, by='size'):
     # print('Feature', feature['name'], 'has', len(f_clusters), 'cluster(s)')
     # ASC sort by cluster size
     f_clusters.sort(key=lambda x: get_cluster_size(x, features_with_clusters), reverse=False)
-
+    # by = 'min_span'
+    iteration = 0
     for cluster in f_clusters:
         # print('F:', list(map(lambda x: x['name'], cluster['features'])),
         #      'R:', list(map(lambda x: list(map(lambda y: y['name'], x)), cluster['relations'])),
@@ -98,12 +100,15 @@ def pre_cl(feature, features_with_clusters, order, cnf, by='size'):
             # TODO: WIP
             # ['r', 'c', 'i', 'j', 'd', 'a', 'b', 'e', 'g', 'h', 'f', 'l', 'm', 'k', 'n']
             # order = [1, 12, 13, 14, 15, 2, 3, 4, 10, 11, 5, 7, 8, 6, 9]
-            print(list(map(lambda x: x['name'], order)))
+            print()
             # order = [1, 12, 13, 14, 15, 2, 3, 4, 10, 11, 5, 7, 8, 6, 9]
             print('min_span')
-            order = force.run(cnf, order)['order']
-            print('force', order)
-            return
+            pp = pprint.PrettyPrinter(depth=6)
+            print('Iteration', iteration, 'Feature', list(map(lambda x: x['name'], order)), 'Relations',
+                  order[0]['clusters'][0]['relations'])
+            # order = force.run(cnf, order)
+            # print('force', order)
+            iteration += 1
         else:
             cli.error(f'Unknown sorting strategy: {by}')
             return
