@@ -134,8 +134,7 @@ def pre_cl(feature, features_with_clusters, order, cnf, by='size'):
                     force_order.append(id)
                 # This cnf does not have negated literals.
                 # This is fine because we just want to reflect relatedness of variables
-                fo = force.run(expr=CNF(clauses=cnf_clauses, variables=cnf_vars), order=force_order, time_run=-1)[
-                    'order']
+                fo = force.run(expr=CNF(clauses=cnf_clauses, variables=cnf_vars), order=force_order, time_run=-1)['order']
 
                 # IDs to feature names
                 fo_names = []
