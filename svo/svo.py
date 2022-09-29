@@ -32,12 +32,15 @@ def compute(expr, details):
     out = dict()
 
     for svo in algos:
+        svo_name = svo.STUB
+        if 'pre_cl' in svo_name or 'fm_traversal' in svo_name:
+            svo_name += '_' + settings['by']
         if settings["par"]:
             cli.say(f"Computing", cli.highlight(n), "orders in parallel for", cli.highlight(expr_name), "using",
-                    cli.highlight(svo.STUB))
+                    cli.highlight(svo_name))
             results = compute_parallel(expr, svo, n, settings)
         else:
-            cli.say(f"Computing", cli.highlight(n), "orders sequentially using", cli.highlight(svo.STUB))
+            cli.say(f"Computing", cli.highlight(n), "orders sequentially using", cli.highlight(svo_name))
             results = compute_parallel(expr, svo, settings, threads=1)
 
         results = post(expr, results)
@@ -124,28 +127,27 @@ def store(expr, n, orders_by_svo, settings):
                 content.append(", ".join([str(x) for x in order]))
 
         content = linesep.join(content) + linesep
-
         if 'pre_cl' in stub or 'fm_traversal' in stub:
             cutting_point = cnf.meta['input-filename'].find('_DIMACS')
             if cutting_point != -1:
-                filename = f"{cnf.meta['input-filename'][0:cutting_point]}-{stub}-{n}.orders"
+                filename = f"{cnf.meta['input-filename'][0:cutting_point]}-{stub}_{settings['by']}-{n}.orders"
             else:
                 cli.warning('Could not extract model name for saving orders file. Using default naming schema')
-                filename = f"{cnf.meta['input-filename']}-{stub}-{n}.orders"
+                filename = f"{cnf.meta['input-filename']}-{stub}_{settings['by']}-{n}.orders"
         else:
             filename = f"{cnf.meta['input-filename']}-{stub}-{n}.orders"
         filepath = path.join(config.DIR_OUT, filename)
 
         if path.exists(filepath):
-            if not "ignore_existing" in settings:
+            if "ignore_existing" not in settings:
                 filepath_old = filepath
                 if 'pre_cl' in stub or 'fm_traversal' in stub:
                     cutting_point = cnf.meta['input-filename'].find('_DIMACS')
                     if cutting_point != -1:
-                        filename = f"{cnf.meta['input-filename'][0:cutting_point]}-{stub}-{n}-{util.timestamp()}.orders"
+                        filename = f"{cnf.meta['input-filename'][0:cutting_point]}-{stub}_{settings['by']}-{n}-{util.timestamp()}.orders"
                     else:
                         cli.warning('Could not extract model name for saving orders file. Using default naming schema')
-                        filename = f"{cnf.meta['input-filename']}-{stub}-{n}-{util.timestamp()}.orders"
+                        filename = f"{cnf.meta['input-filename']}-{stub}_{settings['by']}-{n}-{util.timestamp()}.orders"
                 else:
                     filename = f"{cnf.meta['input-filename']}-{stub}-{n}-{util.timestamp()}.orders"
                 filepath = path.join(config.DIR_OUT, filename)

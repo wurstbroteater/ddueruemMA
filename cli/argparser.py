@@ -40,7 +40,7 @@ def parse(args):
         action_groups.append(current_args)
 
     if not action_groups:
-        print("No arguments submitted, nothing to do.")
+        cli.say("No arguments submitted, nothing to do.")
         exit(1)
 
     files = action_groups[0]
@@ -115,9 +115,16 @@ def process_svo(params):
             settings[k] = v
 
         else:
-            algo = svo.by_stub(param.lower())
-            print('algo', algo)
-            print('param', param.lower())
+            is_pre_cl = 'pre_cl' in param.lower()
+            is_fm_traversal = 'fm_traversal' in param.lower()
+            if is_pre_cl:
+                algo = svo.by_stub('pre_cl')
+                settings['by'] = param.split('pre_cl_')[-1].strip().lower()
+            elif is_fm_traversal:
+                algo = svo.by_stub('fm_traversal')
+                settings['by'] = param.split('fm_traversal_')[-1].strip().lower()
+            else:
+                algo = svo.by_stub(param.lower())
             if algo:
                 algos.append(algo)
             else:
