@@ -1,8 +1,6 @@
-echo "[INFO] Removing old data..."
-rm -rf ./examples/rawFMs
-echo "[INFO] Done!"
 # Extract all Feature Models to examples/FeatureModels
-echo "[INFO] Extracting backup files..."
+echo "----Starting workspace preparation for evaluation----"
+echo "[INFO] Extracting raw feature models..."
 mkdir -p ./examples/rawFMs
 pushd ./examples/rawFMs >/dev/null
 unzip  -q ../featureModels.zip
@@ -13,7 +11,7 @@ rm -rf WaterlooGenerated/
 popd >/dev/null
 echo "[INFO] Done!"
 
-echo "[INFO] Preparing models..."
+echo "[INFO] Preparing feature models..."
 pushd ./examples/rawFMs >/dev/null
 returnCode=0
 for D in *; do
@@ -43,4 +41,9 @@ rm -rf evaluation/ >/dev/null
 mkdir evaluation
 cp -r ./examples/rawFMs/* evaluation/
 echo "[INFO] Done!"
-echo "----Workspace is prepared!----"
+
+echo "[INFO] Removing raw data..."
+rm -rf ./examples/rawFMs
+echo "[INFO] Done!"
+
+echo "----Workspace is prepared for evaluation!----"
