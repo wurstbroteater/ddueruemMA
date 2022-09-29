@@ -47,7 +47,7 @@ def main():
     evals = [x for x in evals if 'automotive' not in str(x).lower()]
     evals = [x for x in evals if 'linux_2.6' not in str(x).lower()]
     evals = sorted(evals, key=lambda ef: os.stat(ef).st_size)
-    #args = ['./ddueruem.py'] + evals + ['--bdd', 'cudd', 'lib_t:-1', 'dvo:off']  # ['--svo', svo_name]
+    # args = ['./ddueruem.py'] + evals + ['--bdd', 'cudd', 'lib_t:-1', 'dvo:off']  # ['--svo', svo_name]
     # args = ['./ddueruem.py', 'examples/xml/' + name, '--bdd', 'cudd', 'lib_t:-1', 'dvo:off']  # '--svo', svo_name]
     # args = ['./ddueruem.py', f'examples/xml/{feature_model_name}.xml', 'examples/xml/npc.xml', '--svo', svo_name]
     cli.debug(args)
@@ -178,7 +178,6 @@ def main():
     if not no_svo and "SVO" in actions:
         # for fm_traversal strategy is 'df','bf' 'pre', 'in' or 'post'
         # for pre_cl strategy is 'size' or 'min_span'
-        traversal_strategy = 'size'
         cli.say("Computing static variable orders...")
         for algo in actions["SVO"]['algos']:
             algo_name = algo.__name__.replace('svo.', '').lower().strip()
@@ -191,7 +190,7 @@ def main():
                     if not file.name.endswith('.xml'):
                         cli.error('SVO pre_cl is only compatible with .xml files!')
                         return
-                    data = {'FeatureModel': expr[0], 'CTCs': expr[1], 'by': traversal_strategy}
+                    data = {'FeatureModel': expr[0], 'CTCs': expr[1], 'by': actions['SVO']['settings']['by']}
                     file_name = file.name.replace('.xml', '')  # Feature Model name without .xml extension
                     format_paths = bootstrap_pre_cl(str(file))
                     if len(format_paths) > 0:
@@ -202,17 +201,14 @@ def main():
                                 data.update({'sxfm': sxfm_parser.parse(p)})
                             else:
                                 cli.warning("Found suspicious file (format): " + p)
-                    # print('For FM', file_name, 'n is', actions['SVO']['settings']['n'])
                     svo.compute(data, actions['SVO'])
 
             elif 'fm_traversal' in algo_name:
-                traversal_strategy = 'bf'
                 for expr in exprs:
-                    data = {'FeatureModel': expr[0], 'CTCs': expr[1], 'by': traversal_strategy}
+                    data = {'FeatureModel': expr[0], 'CTCs': expr[1], 'by': actions['SVO']['settings']['by']}
                     file = Path(expr[-1]['input-filename'])
-                    # TODO: Change
                     fm_traversal_file_name = str(file).replace('.xml', '').split(os.path.sep)[
-                                                 -1] + f'-fm_traversal_{traversal_strategy}.order'
+                                                 -1] + f"-fm_traversal_{actions['SVO']['settings']['by']}.order"
                     cli.say('For Feature Model ' + fm_traversal_file_name)
                     format_paths = bootstrap_fm_traversal(str(file))
                     if len(format_paths) > 0:
@@ -229,21 +225,7 @@ def main():
                     if util.is_file_present(fm_traversal_file_path):
                         cli.say(fm_traversal_file_name + ' already present, skipping')
                         continue
-                    start = datetime.now()
-                    # TODO: Change saving computed order to use svo.compute
-                    # svo.compute(data, actions['SVO'])
-                    features = fm_traversal.run(data, traversal=traversal_strategy)
-                    end = datetime.now()
-                    for f in features['order']:
-                        for f_dimacs in data['dimacs'].variables:
-                            # print('Feature', f, 'f_dimacs', f_dimacs)
-                            if data['dimacs'].variables[f_dimacs]['desc'] == f['name']:
-                                f.update({'dimacsIdx': data['dimacs'].variables[f_dimacs]['ID']})
-                                break
-                    cli.say('name, id', list(map(lambda x: x['name'] + ', ' + str(x['dimacsIdx']), features['order'])))
-                    # direct save to file
-                    open(fm_traversal_file_path, 'w').write(
-                        str({'order': list(map(lambda x: x['dimacsIdx'], features['order'])), 't': end - start}))
+                    svo.compute(data, actions['SVO'])
             else:
                 cli.error('SVO name ' + algo_name + ' is unkown!')
                 return

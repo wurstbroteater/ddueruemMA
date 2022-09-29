@@ -17,11 +17,11 @@ def run_cached(data, id, store, kwargs):
     store[id] = run(data, **kwargs)
 
 
-def run(data, seed=None, **kwargs):
+def run(data, **kwargs):
     root = data['FeatureModel'].copy()
     ctcs = data['CTCs'].copy()
     cnf = data['dimacs']
-    by = 'min_span'  # 'size'  # 'min_span'  # data['by']
+    by = data['by']
     ctcs_as_cnf = data['sxfm'][1]['clauses']
     features = []
     get_features(root, features)
@@ -51,7 +51,6 @@ def run(data, seed=None, **kwargs):
 
     if (l_o := len(order)) != (l_v := len(cnf.variables)):
         cli.warning('Order contains', l_o, 'vars from total of', l_v)
-
     return {
         'order': list(map(lambda x: x['dimacsIdx'], order)),
         'time_clustering': [start_clustering, end_clustering, end_clustering - start_clustering],

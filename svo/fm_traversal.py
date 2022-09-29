@@ -13,27 +13,40 @@ def run_cached(data, id, store, kwargs):
     store[id] = run(data, **kwargs)
 
 
-def run(data, traversal='bf', **kwargs):
+def run(data, by='bf', **kwargs):
     """
     traversal can be 'bf', 'df', 'in', 'pre', 'post'
     """
     fm = data['FeatureModel']
     order = []
-    if traversal.lower() == 'bf':
+    start = datetime.now()
+    if by.lower() == 'bf':
         order = _bf_fm_traversal(fm)
-    elif traversal.lower() == 'df':
+    elif by.lower() == 'df':
         order = _df_fm_traversal(fm)
-    elif traversal.lower() == 'in':
+    elif by.lower() == 'in':
         raise NotImplementedError('in-order traversal not implemented yet')
-    elif traversal.lower() == 'pre':
+    elif by.lower() == 'pre':
         raise NotImplementedError('pre-order traversal not implemented yet')
-    elif traversal.lower() == 'post':
+    elif by.lower() == 'post':
         raise NotImplementedError('post-order traversal not implemented yet')
     else:
-        cli.warning('Found unknown traversal strategy: ' + traversal)
-
+        cli.warning('Found unknown traversal strategy: ' + by)
+    end = datetime.now()
+    for i, f in enumerate(order):
+        id = -1
+        for k in data['dimacs'].variables:
+            if f['name'] == data['dimacs'].variables[k]['desc']:
+                id = data['dimacs'].variables[k]['ID']
+                break
+        if id == -1:
+            cli.error("Could not find id for " + f['name'])
+            return
+        order[i] = id
     return {
         "order": order,
+        't': end - start,
+        'by': by
     }
 
 
