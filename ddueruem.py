@@ -201,7 +201,6 @@ def main():
                                 data.update({'sxfm': sxfm_parser.parse(p)})
                             else:
                                 cli.warning("Found suspicious file (format): " + p)
-                    # print('For FM', file_name, 'n is', actions['SVO']['settings']['n'])
                     svo.compute(data, actions['SVO'])
 
             elif 'fm_traversal' in algo_name:
