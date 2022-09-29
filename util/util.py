@@ -7,7 +7,6 @@ from datetime import datetime
 
 def hash_hex(filepath):
     with open(filepath, "rb") as f:
-
         hash_is = hashlib.md5()
         while chunk := f.read(8192):
             hash_is.update(chunk)
@@ -74,3 +73,10 @@ def translate_xml(filepath, target_folder, formats):
         return "Translation to at least 1 wanted format failed!"
     else:
         return "Unknown return code: " + str(rc)
+
+
+# ---------------------------------------------- File Handling ----------------------------------------------
+def is_file_present(filepath):
+    """Receives an absolut path to a file as String and checks if this file exists and is not a directory"""
+    file = pathlib.Path(filepath)
+    return file.is_file() and not file.is_dir()

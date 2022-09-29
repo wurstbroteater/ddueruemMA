@@ -37,17 +37,17 @@ feature_model_name = 'mendonca_dis'
 
 def main():
     bootstrap()
-    #args = sys.argv
-    #name = feature_model_name + '.xml'
-    # svo_name = 'pre_cl'
+    # args = sys.argv
+    name = feature_model_name + '.xml'
+    svo_name = 'pre_cl'
     # traversal_strategy = 'size'
-    #svo_name = 'fm_traversal'
+    # svo_name = 'fm_traversal'
     # traversal_strategy = 'bf'
     evals = [xml for xml in glob('evaluation/**/*.xml', recursive=True) if '_sxfm' not in str(xml).lower()]
     evals = [x for x in evals if 'automotive' not in str(x).lower()]
     evals = [x for x in evals if 'linux_2.6' not in str(x).lower()]
-    args = ['./ddueruem.py'] + evals + ['--bdd', 'cudd', 'lib_t:-1', 'dvo:off'] # ['--svo', svo_name]
-    # args = ['./ddueruem.py', 'examples/xml/' + name, '--svo', svo_name]
+    args = ['./ddueruem.py'] + evals + ['--bdd', 'cudd', 'lib_t:-1', 'dvo:off']  # ['--svo', svo_name]
+    # args = ['./ddueruem.py', 'examples/xml/' + name, '--bdd', 'cudd', 'lib_t:-1', 'dvo:off']  # '--svo', svo_name]
     # args = ['./ddueruem.py', f'examples/xml/{feature_model_name}.xml', 'examples/xml/npc.xml', '--svo', svo_name]
     cli.debug(args)
     files, actions = argparser.parse(args)
@@ -209,6 +209,7 @@ def main():
                 for expr in exprs:
                     data = {'FeatureModel': expr[0], 'CTCs': expr[1], 'by': traversal_strategy}
                     file = Path(expr[-1]['input-filename'])
+                    # TODO: Change
                     fm_traversal_file_name = str(file).replace('.xml', '').split(os.path.sep)[
                                                  -1] + f'-fm_traversal_{traversal_strategy}.order'
                     cli.say('For Feature Model ' + fm_traversal_file_name)
@@ -224,7 +225,7 @@ def main():
                     cli.debug('For FM', file.name.replace('.xml', ''))
 
                     fm_traversal_file_path = config.DIR_OUT + os.path.sep + fm_traversal_file_name
-                    if Path(fm_traversal_file_path).is_file():
+                    if util.is_file_present(fm_traversal_file_path):
                         cli.say(fm_traversal_file_name + ' already present, skipping')
                         continue
                     start = datetime.now()
@@ -253,28 +254,30 @@ def main():
         cli.say("Computing BDDs")
         for expr in exprs:
             in_file = Path(expr[2]['input-filename'])
+            bdd_filename = f"{in_file.name.replace('.xml', '')}-bdd.csv"
+            if util.is_file_present(config.DIR_OUT + os.path.sep + bdd_filename):
+                cli.say('.csv for', in_file.name.replace('.xml', ''), 'already present, skipping ...')
+                continue
             cli.say(f"For Model {in_file.name.replace('.xml', '')}")
             for compiler in actions["BDD"]["compilers"]:
                 # expr[0] should be list containing int lists
                 suffix = '-pre_cl-1.orders'  # '_DIMACS.dimacs-force-10.orders'
-                orders_filepath = Path(config.DIR_OUT + os.path.sep + in_file.name.replace('.xml', '') + suffix)
-                if not orders_filepath.is_file():
-                    cli.error('Could not find orders file: ' + str(orders_filepath))
+                orders_filepath = config.DIR_OUT + os.path.sep + in_file.name.replace('.xml', '') + suffix
+                if not util.is_file_present(orders_filepath):
+                    cli.error('Could not find orders file: ' + orders_filepath)
                     return
-                dimacs_filepath = Path(
-                    f"{str(in_file.parent)}{os.path.sep}{in_file.name.replace('.xml', '')}_formats{os.path.sep}{in_file.name.replace('.xml', '')}_DIMACS.dimacs")
-                if not dimacs_filepath.is_file():
-                    cli.warning('Dimacs file not present, creating in: ' + str(dimacs_filepath))
+                dimacs_filepath = f"{str(in_file.parent)}{os.path.sep}{in_file.name.replace('.xml', '')}_formats{os.path.sep}{in_file.name.replace('.xml', '')}_DIMACS.dimacs"
+                if not util.is_file_present(dimacs_filepath):
+                    cli.warning('Dimacs file not present, creating in: ' + dimacs_filepath)
                     dimacs_filepath = bootstrap_bdd_creation(str(in_file))[0]
                 attributed_expr = {
                     'dimacs': dimacs.parse(dimacs_filepath),
-                    'orders': svo.parse_orders(str(orders_filepath)),
+                    'orders': svo.parse_orders(orders_filepath),
                     'meta': expr[2]}
                 stats = bdd.compile(compiler, attributed_expr, actions["BDD"])
                 bdd_stats.extend(stats)
 
-            bdd_filename = f"{in_file.name.replace('.xml', '')}-bdd.csv"
-            if Path(config.DIR_OUT + os.path.sep +  bdd_filename).is_file():
+            if util.is_file_present(config.DIR_OUT + os.path.sep + bdd_filename):
                 cli.say(config.DIR_OUT + os.path.sep + bdd_filename + ' already exists, saving with timestamp')
                 bdd_filename = f"{in_file.name.replace('.xml', '')}-bdd-{util.timestamp()}.csv"
             stat_file = path.join(config.DIR_OUT, bdd_filename)
@@ -324,6 +327,7 @@ def bootstrap_bdd_creation(file_path):
     else:
         cli.say('All formats already present')
     return expected_folder_content
+
 
 def bootstrap_fm_traversal(file_path):
     """
