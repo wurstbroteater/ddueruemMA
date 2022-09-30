@@ -1,7 +1,11 @@
 # ------------------------------------------------------------------------------
+"""
+This is the implementation of Pre-Cl-Family heuristic as it is described
+in the dissertation of Marcilio Mendonca
+https://central.bac-lac.gc.ca/.item?id=TC-OWTU-4201&op=pdf&app=Library&oclc_number=613414464
+"""
 # External imports #-----------------------------------------------------------
 from datetime import datetime
-import pprint
 # External imports #-----------------------------------------------------------
 from cli import cli
 from util.formats import CNF
@@ -46,12 +50,16 @@ def run(data, **kwargs):
     end_clustering = datetime.now()
     order = []
     start_pre_cl = datetime.now()
-    pre_cl(find_feature_by_name(root['name'], features_with_cluster), features_with_cluster, order, cnf, by)
+    force_log = None
+    if 'min_span' in by:
+        force_log = []
+    pre_cl(find_feature_by_name(root['name'], features_with_cluster), features_with_cluster, order, cnf, force_log, by)
     end_pre_cl = datetime.now()
 
     if (l_o := len(order)) != (l_v := len(cnf.variables)):
         cli.warning('Order contains', l_o, 'vars from total of', l_v)
-    return {
+
+    out = {
         'order': list(map(lambda x: x['dimacsIdx'], order)),
         'time_clustering': [start_clustering, end_clustering, end_clustering - start_clustering],
         'time_pre_cl': [start_pre_cl, end_pre_cl, end_pre_cl - start_pre_cl],
@@ -60,21 +68,21 @@ def run(data, **kwargs):
         'clauses': len(ctcs_as_cnf),
         'by': by,
         'ecr': ecr,
-        'clusters': print_clusters(features_with_cluster, False).replace('\n', '--')
+        # 'clusters': print_clusters(features_with_cluster, False).replace('\n', '--'),
+        'cluster_size_per_feature': get_cluster_size_per_feature(features_with_cluster)
     }
+    if force_log is not None:
+        out['force_log'] = force_log
+    return out
 
 
-def pre_cl(feature, features_with_clusters, order, cnf, by='size'):
+def pre_cl(feature, features_with_clusters, order, cnf, force_log=None, by='size'):
     order.append(feature)
     f_clusters = list(feature['clusters'])
     # ASC sort by cluster size
     f_clusters.sort(key=lambda x: get_cluster_size(x, features_with_clusters), reverse=False)
-    # by = 'min_span'
-    iteration = 0
+
     for cluster in f_clusters:
-        # print('F:', list(map(lambda x: x['name'], cluster['features'])),
-        #      'R:', list(map(lambda x: list(map(lambda y: y['name'], x)), cluster['relations'])),
-        #      ', size:', get_cluster_size(cluster, features_with_clusters))
         if by.lower() == 'size':
             temp_c = list(cluster['features'])
             temp_c.sort(key=lambda x: get_subtree_size(x, features_with_clusters))
@@ -133,8 +141,10 @@ def pre_cl(feature, features_with_clusters, order, cnf, by='size'):
                     force_order.append(id)
                 # This cnf does not have negated literals.
                 # This is fine because we just want to reflect relatedness of variables
-                fo = force.run(expr=CNF(clauses=cnf_clauses, variables=cnf_vars), order=force_order, time_run=-1)['order']
-
+                fo = force.run(expr=CNF(clauses=cnf_clauses, variables=cnf_vars), order=force_order, time_run=-1)
+                if force_log is not None:
+                    force_log.append(fo)
+                fo = fo['order']
                 # IDs to feature names
                 fo_names = []
                 for v_id in fo:
@@ -402,6 +412,18 @@ def get_subtree_size(feature, features_with_clusters):
             child = find_feature_by_name(child, features_with_clusters)
             size = size + get_subtree_size(child, features_with_clusters)
     return size
+
+
+def get_cluster_size_per_feature(feature_with_clusters):
+    """Receives list of features with clusters and returns a String containing the dimacsId and cluster
+     size for each feature, e.g. for feature r with id 1 and 14 cluster, the output could look like 1:14.
+     If there more than one feature, the outputs are separated by -."""
+    out = ''
+    for i_f, f in enumerate(feature_with_clusters):
+        out += f"{f['dimacsIdx']}:{_get_cluster_size(f, feature_with_clusters)}"
+        if i_f != len(feature_with_clusters) - 1:
+            out += '-'
+    return out
 
 
 def print_clusters(features_with_clusters, print_it=True):
