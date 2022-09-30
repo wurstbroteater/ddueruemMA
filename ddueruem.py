@@ -21,9 +21,11 @@ from svo import svo
 from usample import usample
 from cli import cli, argparser
 from util import plugin, util, jinja_renderer
-from parsers import parsers, sxfm_parser, dimacs
+from parsers import parsers, sxfm_parser, dimacs, order_parser
 
 # ------------------------------------------------------------------------------
+from util.formats import CNF
+
 
 def main():
     bootstrap()
@@ -170,7 +172,36 @@ def main():
             algo_name = algo.__name__.replace('svo.', '').lower().strip()
             if ('force' in algo_name) or ('random' in algo_name):
                 for expr in exprs:
-                    svo.compute(expr, actions["SVO"])
+                    if type(expr) == CNF:
+                        svo.compute(expr, actions["SVO"])
+                    else:
+                        file = Path(expr[-1]['input-filename'])
+                        if file.name.lower().endswith('.xml'):
+                            # check if dimacs present
+                            dimacs_file = Path(str(file.parent) + os.path.sep + file.name.replace('.xml', '') +
+                                               '_formats' + os.path.sep + file.name.replace('.xml', '') +
+                                               '_DIMACS.dimacs')
+                            if not dimacs_file.is_file():
+                                cli.say('.xml in FORCE: Creating ' + str(dimacs_file))
+                                dimacs_file = Path(str(bootstrap_xml_in_force(str(file))[0]))
+                                print('dimacs_file',dimacs_file)
+                            used_svo = 'pre_cl_size'
+                            used_n = actions['SVO']['settings']['n']
+                            order_file = Path(f"{config.DIR_OUT}{os.path.sep}{file.name.replace('.xml', '')}-{used_svo}-{used_n}.orders")
+                            order = None
+                            if order_file.is_file():
+                                order = order_parser.parse(order_file)[0][0]
+                                if not all([isinstance(item, int) for item in order]):
+                                    cli.warning('.xml in FORCE: parsed order is not int list!')
+                            else:
+                                cli.warning(".xml in FORCE: Could not find orders file " + str(order_file))
+                            actions['SVO']['settings']['order'] = order
+                            svo.compute(dimacs.parse(dimacs_file), actions["SVO"])
+
+                        else:
+                            cli.error("Force can not parse file with name " + file.name)
+                            return
+
             elif 'pre_cl' in algo_name:
                 for expr in exprs:
                     file = Path(expr[-1]['input-filename'])
@@ -300,6 +331,41 @@ def bootstrap_bdd_creation(file_path):
 
 
 def bootstrap_fm_traversal(file_path):
+    """
+    Check if all file formats are present. This follows a certain pattern:
+        E.g. for file_path = config.ROOT/home/foo/<model name>.xml
+        Check if folder config.ROOT/home/foo/<model name>_formats/ exist then check
+          if this folder contains files named like <model name>_DIMACS.dimacs and <model name>_SXFM.xml
+            If one of this files is not present, create it
+
+    """
+    file_path = file_path
+    file_name = file_path.split(os.path.sep)[-1]
+    formats_dir = file_path.replace(file_name, '') + f"{file_name.replace('.xml', '')}_formats"
+    verify_or_create_dir(formats_dir)
+    prefix = formats_dir + os.path.sep + file_name.replace('.xml', '')
+    expected_folder_content = [prefix + '_DIMACS.dimacs']
+    formats = []
+    for format_path in expected_folder_content:
+        p = Path(format_path)
+        if p.is_file():
+            continue
+        elif not p.is_file() and not p.is_dir():
+            if 'dimacs' in format_path.lower():
+                formats.append('dimacs')
+
+    if len(formats) > 0:
+        cli.say('Creating formats', formats)
+        if e := util.translate_xml(file_path, formats_dir, formats) != "Successfully translated to all formats!":
+            cli.error(f"Could not create all formats for model {file_name.replace('.xml', '')}: {e}")
+            return
+
+    else:
+        cli.say('All formats already present')
+    return expected_folder_content
+
+
+def bootstrap_xml_in_force(file_path):
     """
     Check if all file formats are present. This follows a certain pattern:
         E.g. for file_path = config.ROOT/home/foo/<model name>.xml

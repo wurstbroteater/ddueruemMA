@@ -2,8 +2,6 @@ from datetime import datetime, timedelta
 
 # ------------------------------------------------------------------------------
 # Internal imports #-----------------------------------------------------------
-
-from cli import cli
 from svo import random
 
 STUB = "force"
