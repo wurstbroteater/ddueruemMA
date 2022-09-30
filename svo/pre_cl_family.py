@@ -58,7 +58,6 @@ def run(data, **kwargs):
 
     if (l_o := len(order)) != (l_v := len(cnf.variables)):
         cli.warning('Order contains', l_o, 'vars from total of', l_v)
-
     out = {
         'order': list(map(lambda x: x['dimacsIdx'], order)),
         'time_clustering': [start_clustering, end_clustering, end_clustering - start_clustering],
@@ -145,6 +144,8 @@ def pre_cl(feature, features_with_clusters, order, cnf, force_log=None, by='size
                 if force_log is not None:
                     force_log.append(fo)
                 fo = fo['order']
+                if (fo_l := len(fo)) != (vars_len := len(cnf_vars)):
+                    cli.warning(f'For force order size {fo_l} differ from number of variables {vars_len}')
                 # IDs to feature names
                 fo_names = []
                 for v_id in fo:
@@ -217,7 +218,7 @@ def _merge_sharing_elements(clusters, r):
             for f_in_cl in list(cl['features']):
                 if f_in_r == f_in_cl:
                     nc['features'] = nc['features'] + [f for f in cl['features'] if f not in nc['features']]
-                    nc['relations'] = cl['relations']
+                    nc['relations'] = cl['relations'] + [f for f in nc['relations'] if f not in cl['relations']]
                     to_remove.append(cl)
     clusters = [c for c in clusters if c not in to_remove]
     clusters.append(nc)
