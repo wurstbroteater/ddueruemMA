@@ -13,44 +13,31 @@ import sys
 from glob import glob
 from os import linesep, path
 from pathlib import Path
-from datetime import datetime
 # ------------------------------------------------------------------------------
 # Internal imports #-----------------------------------------------------------
-from pprint import pprint
-
 import config
 from bdd import bdd
-from svo import svo, fm_traversal
+from svo import svo
 from usample import usample
 from cli import cli, argparser
 from util import plugin, util, jinja_renderer
 from parsers import parsers, sxfm_parser, dimacs
 
 # ------------------------------------------------------------------------------
-# feature_model_name = 'busybox1dot18dot0'
-# feature_model_name = 'npc'
-# feature_model_name = 'anyvend'
-# feature_model_name = 'finSer01'
-# feature_model_name = 'automotiv2v4'
-feature_model_name = 'mendonca_dis'
-
 
 def main():
     bootstrap()
     args = sys.argv
-    name = feature_model_name + '.xml'
-    svo_name = 'pre_cl'
-    # traversal_strategy = 'size'
-    # svo_name = 'fm_traversal'
-    # traversal_strategy = 'bf'
-    evals = [xml for xml in glob('evaluation/**/*.xml', recursive=True) if '_sxfm' not in str(xml).lower()]
-    evals = [x for x in evals if 'automotive' not in str(x).lower()]
-    evals = [x for x in evals if 'linux_2.6' not in str(x).lower()]
-    evals = sorted(evals, key=lambda ef: os.stat(ef).st_size)
-    # args = ['./ddueruem.py'] + evals + ['--bdd', 'cudd', 'lib_t:-1', 'dvo:off']  # ['--svo', svo_name]
-    # args = ['./ddueruem.py', 'examples/xml/' + name, '--bdd', 'cudd', 'lib_t:-1', 'dvo:off']  # '--svo', svo_name]
-    # args = ['./ddueruem.py', f'examples/xml/{feature_model_name}.xml', 'examples/xml/npc.xml', '--svo', svo_name]
+
+    if (e := '--evaluation') in args:
+        evals = [xml for xml in glob('evaluation/**/*.xml', recursive=True) if '_sxfm' not in str(xml).lower()]
+        evals = [x for x in evals if 'automotive' not in str(x).lower()]
+        evals = [x for x in evals if 'linux_2.6' not in str(x).lower()]
+        evals = sorted(evals, key=lambda ef: os.stat(ef).st_size)
+        pos = args.index(e)
+        args = args[:pos] + evals + args[pos + 1:]
     cli.debug(args)
+
     files, actions = argparser.parse(args)
     # TODO: There is no possibility for just building BDDS
     # ./ddueruem.py <file> --bdd cudd lib_t:-1 dvo:off results in the following actions:
