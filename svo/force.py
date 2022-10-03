@@ -26,8 +26,9 @@ def run(expr, order=None, seed=None, time_run=60, collect_dists=False, **kwargs)
 
     spans = [span]
     dists = [dist]
-
-    while datetime.now() - now < timedelta(seconds=time_run) if time_run != -1 else True:
+    start = datetime.now()
+    # TODO: change back to use time_run after eval
+    while True:  # datetime.now() - now < timedelta(seconds=time_run) if time_run != -1 else True:
         n_variables = expr.get_no_variables()
 
         # +1 as indizes start at 1
@@ -72,12 +73,14 @@ def run(expr, order=None, seed=None, time_run=60, collect_dists=False, **kwargs)
             dists.append(dist)
 
         if span_old == span:
-            break;
+            break
 
     out = {
         "order": order,
         "orders": orders,
         "spans": spans,
+        "t_start": start,
+        "t_end": datetime.now(),
         "times": times
     }
 
