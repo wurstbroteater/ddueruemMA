@@ -111,6 +111,7 @@ def main():
             except AttributeError:
                 # input file probably was .xml model, find corresponding dimacs or create it
                 input_filepath = Path(expr[-1]['input-filename'])
+                cli.say(f"Analyzing model {input_filepath.name.replace('.xml', '')}")
                 input_filepath = bootstrap_bdd_creation(str(input_filepath))[0]
                 expr = dimacs.parse(input_filepath)
 
@@ -328,7 +329,7 @@ def bootstrap_bdd_creation(file_path):
             return
 
     else:
-        cli.say('All formats already present')
+        cli.debug('All formats already present')
     return expected_folder_content
 
 
