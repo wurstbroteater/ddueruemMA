@@ -113,6 +113,9 @@ def main():
                 input_filepath = Path(expr[-1]['input-filename'])
                 cli.say(f"Analyzing model {input_filepath.name.replace('.xml', '')}")
                 input_filepath = bootstrap_bdd_creation(str(input_filepath))[0]
+                if util.is_file_present(config.DIR_OUT + os.path.sep + Path(input_filepath).name + '.stats'):
+                    cli.say(".stats file present, skipping...")
+                    continue
                 expr = dimacs.parse(input_filepath)
 
             stat_filepath = path.join(config.DIR_OUT, path.basename(input_filepath)) + ".stats"
