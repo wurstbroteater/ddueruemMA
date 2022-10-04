@@ -106,8 +106,14 @@ def main():
         results = dict()
 
         for expr in exprs:
+            try:
+                input_filepath = expr.meta["input-filepath"]
+            except AttributeError:
+                # input file probably was .xml model, find corresponding dimacs or create it
+                input_filepath = Path(expr[-1]['input-filename'])
+                input_filepath = bootstrap_bdd_creation(str(input_filepath))[0]
+                expr = dimacs.parse(input_filepath)
 
-            input_filepath = expr.meta["input-filepath"]
             stat_filepath = path.join(config.DIR_OUT, path.basename(input_filepath)) + ".stats"
 
             output = subprocess.run([sharpSAT, input_filepath], capture_output=True).stdout.decode("utf-8")
@@ -184,10 +190,11 @@ def main():
                             if not dimacs_file.is_file():
                                 cli.say('.xml in FORCE: Creating ' + str(dimacs_file))
                                 dimacs_file = Path(str(bootstrap_xml_in_force(str(file))[0]))
-                                print('dimacs_file',dimacs_file)
+                                print('dimacs_file', dimacs_file)
                             used_svo = 'pre_cl_size'
                             used_n = actions['SVO']['settings']['n']
-                            order_file = Path(f"{config.DIR_OUT}{os.path.sep}{file.name.replace('.xml', '')}-{used_svo}-{used_n}.orders")
+                            order_file = Path(
+                                f"{config.DIR_OUT}{os.path.sep}{file.name.replace('.xml', '')}-{used_svo}-{used_n}.orders")
                             order = None
                             if order_file.is_file():
                                 order = order_parser.parse(order_file)[0][0]
@@ -258,7 +265,7 @@ def main():
             bdd_filename = f"{in_file.name.replace('.xml', '')}-bdd.csv"
             if util.is_file_present(config.DIR_OUT + os.path.sep + bdd_filename):
                 cli.say('.csv for', in_file.name.replace('.xml', ''), 'already present, skipping ...')
-                #continue
+                # continue
             cli.say(f"For Model {in_file.name.replace('.xml', '')}")
             for compiler in actions["BDD"]["compilers"]:
                 suffix = '-pre_cl_size-1.orders'  # '_DIMACS.dimacs-force-10.orders'
