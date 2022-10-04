@@ -254,15 +254,14 @@ def main():
     if "BDD" in actions:
         cli.say("Computing BDDs")
         for expr in exprs:
-            in_file = Path(expr[2]['input-filename'])
+            in_file = Path(expr[-1]['input-filename'])
             bdd_filename = f"{in_file.name.replace('.xml', '')}-bdd.csv"
             if util.is_file_present(config.DIR_OUT + os.path.sep + bdd_filename):
                 cli.say('.csv for', in_file.name.replace('.xml', ''), 'already present, skipping ...')
-                continue
+                #continue
             cli.say(f"For Model {in_file.name.replace('.xml', '')}")
             for compiler in actions["BDD"]["compilers"]:
-                # expr[0] should be list containing int lists
-                suffix = '-pre_cl-1.orders'  # '_DIMACS.dimacs-force-10.orders'
+                suffix = '-pre_cl_size-1.orders'  # '_DIMACS.dimacs-force-10.orders'
                 orders_filepath = config.DIR_OUT + os.path.sep + in_file.name.replace('.xml', '') + suffix
                 if not util.is_file_present(orders_filepath):
                     cli.error('Could not find orders file: ' + orders_filepath)
@@ -277,13 +276,9 @@ def main():
                     'meta': expr[2]}
                 stats = bdd.compile(compiler, attributed_expr, actions["BDD"])
                 bdd_stats.extend(stats)
+                stat_file = path.join(config.DIR_OUT, bdd_filename)
+                jinja_renderer.render("svoeval", stat_file, bdd_stats)
 
-            if util.is_file_present(config.DIR_OUT + os.path.sep + bdd_filename):
-                cli.say(config.DIR_OUT + os.path.sep + bdd_filename + ' already exists, saving with timestamp')
-                bdd_filename = f"{in_file.name.replace('.xml', '')}-bdd-{util.timestamp()}.csv"
-            stat_file = path.join(config.DIR_OUT, bdd_filename)
-            jinja_renderer.render("svoeval", stat_file, bdd_stats)
-            bdd_stats = []
         cli.say('Finished computation of BDDs')
         exit()
 

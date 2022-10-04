@@ -65,8 +65,7 @@ def compute_parallel(expr, svo, n, settings, threads=None):
     store = manager.dict()
 
     for i in range(n):
-        svo.run_cached(expr, i, store, settings)
-        # pool.apply_async(svo.run_cached, args=(expr, i, store, settings))
+        pool.apply_async(svo.run_cached, args=(expr, i, store, settings))
 
     pool.close()
     pool.join()

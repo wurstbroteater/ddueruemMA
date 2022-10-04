@@ -20,6 +20,10 @@ def render(template_name, filename, data):
 
         for k, v in x.items():
             k = re.sub("-", "_", k)
+
+            if isinstance(v, float):
+                v = f"{v:.3f}"
+
             y[k] = v
 
         data[i] = y

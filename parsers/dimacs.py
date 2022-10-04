@@ -22,7 +22,7 @@ parses = [".dimacs", ".cnf"]
 
 # ------------------------------------------------------------------------------
 # RegEx Patterns #-------------------------------------------------------------
-P_comment = re.compile(r"c\s+(?P<var_id>\d+)\s+(?P<var_name>.+)$")
+P_comment = re.compile(r"c\s+(?P<var_id>\d+)[^\s]*\s+(?P<var_name>.+)$")
 P_descriptor = re.compile(r"p\s+([cC][nN][fF])\s+(?P<n_variables>\d+)\s+(?P<n_clauses>\d+)\s*$")
 
 
@@ -76,7 +76,7 @@ def parse(filename, remove_tautologies=True):
 
             else:
                 if not passed_descriptor:
-                    raise MalformedInputException("p-line missing in DIMACS")
+                    raise MalformedInputException(f"p-line missing in DIMACS ({filename})")
 
                 parts = re.split(r"[\s]+", line)
                 parts = [int(x) for x in parts if x != ""]
