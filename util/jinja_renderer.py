@@ -11,6 +11,7 @@ env = Environment(
 def render(template_name, filename, data):
     if not template_name.endswith("j2"):
         template_name = f"{template_name}.j2"
+    print(template_name)
 
     template = env.get_template(template_name)
 
@@ -21,7 +22,7 @@ def render(template_name, filename, data):
         for k, v in x.items():
             k = re.sub("-", "_", k)
 
-            if isinstance(v, float):
+            if template_name.replace('.j2', '') != 'svoeval' and isinstance(v, float):
                 v = f"{v:.3f}"
 
             y[k] = v
