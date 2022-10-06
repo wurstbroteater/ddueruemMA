@@ -266,11 +266,13 @@ def main():
             bdd_filename = f"{in_file.name.replace('.xml', '')}-bdd.csv"
             if util.is_file_present(config.DIR_OUT + os.path.sep + bdd_filename):
                 cli.say('.csv for', in_file.name.replace('.xml', ''), 'already present, skipping ...')
-                # continue
+                continue
             cli.say(f"For Model {in_file.name.replace('.xml', '')}")
             for compiler in actions["BDD"]["compilers"]:
-                suffix = '-pre_cl_size-1.orders'  # '_DIMACS.dimacs-force-10.orders'
-                orders_filepath = config.DIR_OUT + os.path.sep + in_file.name.replace('.xml', '') + suffix
+                by_in_suffix = 'size'
+                suffix = f'-pre_cl_{by_in_suffix}-1.orders'  # '_DIMACS.dimacs-force-10.orders'
+                sep = os.path.sep
+                orders_filepath = config.DIR_OUT + f'{sep}data{sep}size{sep}' + in_file.name.replace('.xml', '') + suffix
                 if not util.is_file_present(orders_filepath):
                     cli.error('Could not find orders file: ' + orders_filepath)
                     return
@@ -286,6 +288,7 @@ def main():
                 bdd_stats.extend(stats)
                 stat_file = path.join(config.DIR_OUT, bdd_filename)
                 jinja_renderer.render("svoeval", stat_file, bdd_stats)
+                bdd_stats = []
 
         cli.say('Finished computation of BDDs')
         exit()
