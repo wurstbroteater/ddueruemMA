@@ -269,14 +269,14 @@ def main():
         for expr in exprs:
             in_file = Path(expr[-1]['input-filename']) if type(expr) != CNF else Path(expr.meta['input-filepath'])
             model_name = in_file.name.replace('.xml', '').replace('_DIMACS.dimacs', '')
-            bdd_filename = f"{model_name}-bdd.csv"
+            by_in_suffix = 'min_span'
+            directory = 'span' if by_in_suffix == 'min_span' else 'size'
+            bdd_filename = f"{model_name}-bdd-cudd-{by_in_suffix}.csv"
             if util.is_file_present(config.DIR_OUT + os.path.sep + bdd_filename):
                 cli.say('.csv for', in_file.name.replace('.xml', ''), 'already present, skipping ...')
                 continue
             cli.say(f"For Model {model_name}")
             for compiler in actions["BDD"]["compilers"]:
-                by_in_suffix = 'min_span'
-                directory = 'span' if by_in_suffix == 'min_span' else 'size'
                 suffix = f'-pre_cl_{by_in_suffix}-1.orders'  # '_DIMACS.dimacs-force-10.orders'
                 sep = os.path.sep
                 orders_filepath = config.DIR_OUT + f'{sep}data{sep}{directory}{sep}' + model_name + suffix
@@ -295,12 +295,12 @@ def main():
                         'input-filepath': expr[2]['input-filename'],
                         'input-filehash': expr[2]['input-filehash']}
                     attributed_expr.orders = {}
-                    attributed_expr.orders["none"] = svo.parse_orders(orders_filepath)
+                    attributed_expr.orders[by_in_suffix] = svo.parse_orders(orders_filepath)
                     attributed_expr = [attributed_expr]
                 else:
                     attributed_expr = expr
                     attributed_expr.orders = {}
-                    attributed_expr.orders["none"] = svo.parse_orders(orders_filepath)
+                    attributed_expr.orders[by_in_suffix] = svo.parse_orders(orders_filepath)
                     attributed_expr = [attributed_expr]
                 stats = bdd.compile(compiler, attributed_expr, actions["BDD"])
                 stats = [dict(s, svo=by_in_suffix) for s in stats]

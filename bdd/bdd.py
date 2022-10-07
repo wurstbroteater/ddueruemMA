@@ -1,5 +1,8 @@
 import multiprocessing
+import os.path
 from os import path
+from pathlib import Path
+
 import traceback
 
 from . import *
@@ -37,9 +40,9 @@ def compile_threaded(lib, dvo, expr, order, meta, dump=False):
     out = bdd_manager.build_from_CNF(expr, order, meta)
 
     if dump:
-        # FIXME: Needs more sophistication
-        filename = path.join(config.DIR_OUT, f'{expr.meta["input-filename"]}-{lib.STUB}.bdd')
-        bdd_manager.dump(expr, filename, out)
+        model_name = Path(expr.meta['input-filepath']).name.replace('.xml', '').replace('_DIMACS.dimacs', '')
+        filepath = str(Path(config.DIR_OUT + f'{os.path.sep}{model_name}-{lib.STUB}-dump.log'))
+        bdd_manager.dump(expr, filepath, out)
 
     return out
 
@@ -47,12 +50,13 @@ def compile_threaded(lib, dvo, expr, order, meta, dump=False):
 def compile(compiler, exprs, context):
     stats = []
 
-    stat_file = path.join(config.DIR_OUT, f"bdd-{compiler.STUB}-{timestamp()}.csv")
+    stat_file = None
 
     context = context["settings"]
     dump = context["dump"]
     dvos = context["dvo"]
     lib_t = context["lib_t"]
+    print('context', context)
 
     for expr in exprs:
         if type(expr) == dict:
@@ -65,6 +69,8 @@ def compile(compiler, exprs, context):
 
         for svo_stub, orders in expr.orders.items():
             print("Using variable orders computed with", svo_stub)
+            model_name = Path(expr.meta['input-filepath']).name.replace('.xml', '').replace('_DIMACS.dimacs', '')
+            stat_file = path.join(config.DIR_OUT, f"{model_name}-bdd-{compiler.STUB}-{svo_stub}.csv")
 
             if isinstance(orders, list):
                 pass
@@ -109,9 +115,9 @@ def compile(compiler, exprs, context):
                     if meta["log"]:
                         _, _, _, _, time_dvo = meta["log"][-1]
                         meta["time-dvo"] = time_dvo
-                    meta['input-filename'] = meta['input-filename'].replace('_DIMACS.dimacs', '')
+                    meta['input-filename'] = meta['input-filename'].replace('.xml', '').replace('_DIMACS.dimacs', '')
                     stats.append(meta)
-        jinja_renderer.render("bdd", stat_file, stats)
+        # jinja_renderer.render("bdd", stat_file, stats)
 
     return stats
 
