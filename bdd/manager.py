@@ -1,14 +1,13 @@
 from abc import ABC
 from ctypes import CDLL
 from os import path
-
+import multiprocessing
 # -----------------------------------------------------------------------------#
+
 from cli import cli
-from cli.format import h
 
 
 # -----------------------------------------------------------------------------#
-
 
 class Manager(ABC):
 
@@ -33,7 +32,8 @@ class Manager(ABC):
 
     def load_lib(self, shared_lib, hint_install):
         if not path.exists(shared_lib):
-            cli.error(cli.highlight(shared_lib, "e"), "not found, please install first with", cli.highlight(hint_install, "e"))
+            cli.error(cli.highlight(shared_lib, "e"), "not found, please install first with",
+                      cli.highlight(hint_install, "e"))
         else:
             return CDLL(f"./{shared_lib}")
 

@@ -15,14 +15,14 @@ def highlight(text, more=""):
     return format.h(text, more)
 
 
-def say(*parts, origin=None):
+def say(*parts, origin=None, end="\n"):
     if config.SILENT:
         return
 
     if origin:
-        print(format.render(f"<!>{origin}", ">", *parts))
+        print(format.render(f"<!>{origin}", ">", *parts), end=end)
     else:
-        print(format.render(*parts))
+        print(format.render(*parts), end=end)
 
 
 def debug(*parts, origin=None):

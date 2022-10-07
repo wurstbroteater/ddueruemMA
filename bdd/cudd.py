@@ -25,7 +25,7 @@ configure_settings = "CFLAGS=-fPIC -std=c99"
 
 make_append = f"CUDD_SRC={sources_dir}"
 
-hint_install = "./setup.py cudd"
+hint_install = "./ddueruem.py --install cudd"
 
 has_zero_based_indizes = True
 requires_variable_count_advertisement = True
@@ -70,8 +70,12 @@ class DVO(IntEnum):
 # ---- Setup and CDLL Helpers --------------------------------------------------#
 
 def configure():
-    out = subprocess.run(['./configure', configure_settings], cwd=sources_dir, capture_output=True).stdout.decode(
-        'utf-8')
+    proc = subprocess.run(['./configure', configure_settings], cwd=sources_dir, capture_output=True)
+    ec = proc.returncode
+    stdout = proc.stdout.decode("utf-8")
+    stderr = proc.stderr.decode("utf-8")
+
+    return ec, stdout, stderr
 
 
 def install_post():
@@ -219,7 +223,6 @@ class Manager(manager.Manager):
             self._exit = declare(self.cudd.Cudd_Quit, [POINTER(DdManager)])
 
         self._exit(self.mgr)
-        self.say_bye()
 
     def set_no_variables(self, no_variables):
 
@@ -446,7 +449,7 @@ class Manager(manager.Manager):
         self.dvo = DVO[dvo.upper()]
 
         if self.dvo == DVO.OFF:
-            self.disable_dvo
+            self.disable_dvo()
         else:
             self._enable_dynorder(self.mgr, self.dvo)
 
@@ -466,3 +469,6 @@ class Manager(manager.Manager):
             self._read_reordering_time = declare(self.cudd.Cudd_ReadReorderingTime, [POINTER(DdManager)])
 
         return ms2s(self._read_reordering_time(self.mgr))
+
+    def get_name(self):
+        return FULL

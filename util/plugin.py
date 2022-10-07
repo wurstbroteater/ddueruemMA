@@ -48,6 +48,7 @@ def install(tool, clean=False):
                         "yourself for data security reasons")
                 return True, False
             else:
+                # TODO: Add a verification hooked in the plugin.
                 cli.say(f"Files exist. Nothing to do.", origin=tool.FULL)
                 return True, False
 
@@ -76,12 +77,33 @@ def install(tool, clean=False):
 
     if check_key(tool, "shared_lib"):
         if clean or not path.exists(tool.shared_lib):
-            cli.say("Configuring...")
-            tool.configure()
+            cli.say("Configuring...", end=" ")
+            ec, stdout, stderr = tool.configure()
 
-            cli.say("Making...")
+            if ec != 0:
+                cli.error("Failed")
+                cli.error("Configuring failed with exit code", cli.highlight(ec))
+                cli.say(stdout)
+                cli.say(stderr)
+                return False, False
+            else:
+                cli.say("Done.")
 
-            out = subprocess.run(['make', tool.make_append, tool.STUB.lower(), '-j4'], capture_output=True)
+            cli.say("Making...", end=" ")
+
+            proc = subprocess.run(['make', tool.make_append, tool.STUB.lower(), '-j4'], capture_output=True)
+            ec = proc.returncode
+            stdout = proc.stdout.decode("utf-8")
+            stderr = proc.stderr.decode("utf-8")
+
+            if ec != 0:
+                cli.error("Failed")
+                cli.error("Making failed with exit code", cli.highlight(ec))
+                cli.say(stdout)
+                cli.say(stderr)
+                return False, False
+            else:
+                cli.say("Done.")
 
         if path.exists(tool.shared_lib):
             cli.say(cli.highlight(tool.FULL), 'build: SUCCESS')

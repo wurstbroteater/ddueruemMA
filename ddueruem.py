@@ -16,15 +16,18 @@ from pathlib import Path
 # ------------------------------------------------------------------------------
 # Internal imports #-----------------------------------------------------------
 import config
+from cli import cli, argparser
+
 from bdd import bdd
 from svo import svo
 from usample import usample
-from cli import cli, argparser
+
 from util import plugin, util, jinja_renderer
 from parsers import parsers, sxfm_parser, dimacs, order_parser
+from util.formats import CNF
+
 
 # ------------------------------------------------------------------------------
-from util.formats import CNF
 
 
 def main():
@@ -112,7 +115,7 @@ def main():
                 # input file probably was .xml model, find corresponding dimacs or create it
                 input_filepath = Path(expr[-1]['input-filename'])
                 cli.say(f"Analyzing model {input_filepath.name.replace('.xml', '')}")
-                input_filepath = bootstrap_bdd_creation(str(input_filepath))[0]
+                input_filepath = bootstrap_analyze(str(input_filepath))
                 if util.is_file_present(config.DIR_OUT + os.path.sep + Path(input_filepath).name + '.stats'):
                     cli.say(".stats file present, skipping...")
                     continue
@@ -194,7 +197,6 @@ def main():
                             if not dimacs_file.is_file():
                                 cli.say('.xml in FORCE: Creating ' + str(dimacs_file))
                                 dimacs_file = Path(str(bootstrap_xml_in_force(str(file))[0]))
-                                print('dimacs_file', dimacs_file)
                             used_svo = 'pre_cl_size'
                             used_n = actions['SVO']['settings']['n']
                             order_file = Path(
@@ -265,29 +267,43 @@ def main():
     if "BDD" in actions:
         cli.say("Computing BDDs")
         for expr in exprs:
-            in_file = Path(expr[-1]['input-filename'])
-            bdd_filename = f"{in_file.name.replace('.xml', '')}-bdd.csv"
+            in_file = Path(expr[-1]['input-filename']) if type(expr) != CNF else Path(expr.meta['input-filepath'])
+            model_name = in_file.name.replace('.xml', '').replace('_DIMACS.dimacs', '')
+            bdd_filename = f"{model_name}-bdd.csv"
             if util.is_file_present(config.DIR_OUT + os.path.sep + bdd_filename):
                 cli.say('.csv for', in_file.name.replace('.xml', ''), 'already present, skipping ...')
                 continue
-            cli.say(f"For Model {in_file.name.replace('.xml', '')}")
+            cli.say(f"For Model {model_name}")
             for compiler in actions["BDD"]["compilers"]:
-                by_in_suffix = 'size'
+                by_in_suffix = 'min_span'
+                directory = 'span' if by_in_suffix == 'min_span' else 'size'
                 suffix = f'-pre_cl_{by_in_suffix}-1.orders'  # '_DIMACS.dimacs-force-10.orders'
                 sep = os.path.sep
-                orders_filepath = config.DIR_OUT + f'{sep}data{sep}size{sep}' + in_file.name.replace('.xml', '') + suffix
+                orders_filepath = config.DIR_OUT + f'{sep}data{sep}{directory}{sep}' + model_name + suffix
                 if not util.is_file_present(orders_filepath):
                     cli.error('Could not find orders file: ' + orders_filepath)
                     return
-                dimacs_filepath = f"{str(in_file.parent)}{os.path.sep}{in_file.name.replace('.xml', '')}_formats{os.path.sep}{in_file.name.replace('.xml', '')}_DIMACS.dimacs"
+                dimacs_filepath = f"{str(in_file.parent)}{os.path.sep}{model_name}_formats{os.path.sep}{model_name}_DIMACS.dimacs" if type(
+                    expr) != CNF else in_file
                 if not util.is_file_present(dimacs_filepath):
                     cli.warning('Dimacs file not present, creating in: ' + dimacs_filepath)
                     dimacs_filepath = bootstrap_bdd_creation(str(in_file))[0]
-                attributed_expr = {
-                    'dimacs': dimacs.parse(dimacs_filepath),
-                    'orders': svo.parse_orders(orders_filepath),
-                    'meta': expr[2]}
+                if type(expr) != CNF:
+                    attributed_expr = dimacs.parse(dimacs_filepath)
+                    attributed_expr.meta = {
+                        'input-filename': Path(expr[2]['input-filename']).name,
+                        'input-filepath': expr[2]['input-filename'],
+                        'input-filehash': expr[2]['input-filehash']}
+                    attributed_expr.orders = {}
+                    attributed_expr.orders["none"] = svo.parse_orders(orders_filepath)
+                    attributed_expr = [attributed_expr]
+                else:
+                    attributed_expr = expr
+                    attributed_expr.orders = {}
+                    attributed_expr.orders["none"] = svo.parse_orders(orders_filepath)
+                    attributed_expr = [attributed_expr]
                 stats = bdd.compile(compiler, attributed_expr, actions["BDD"])
+                stats = [dict(s, svo=by_in_suffix) for s in stats]
                 bdd_stats.extend(stats)
                 stat_file = path.join(config.DIR_OUT, bdd_filename)
                 jinja_renderer.render("svoeval", stat_file, bdd_stats)
@@ -303,6 +319,40 @@ def bootstrap():
 
     for dir in dirs:
         verify_or_create_dir(dir)
+
+
+def bootstrap_analyze(file_path):
+    """
+    Check if all file formats are present. This follows a certain pattern:
+        E.g. for file_path = config.ROOT/home/foo/<model name>.xml
+        Check if folder config.ROOT/home/foo/<model name>_formats/ exist then check
+          if this folder contains files named like <model name>_DIMACS.dimacs
+            If this file is not present, it will be created
+    """
+    file_path = file_path
+    file_name = file_path.split(os.path.sep)[-1]
+    formats_dir = file_path.replace(file_name, '') + f"{file_name.replace('.xml', '')}_formats"
+    verify_or_create_dir(formats_dir)
+    prefix = formats_dir + os.path.sep + file_name.replace('.xml', '')
+    expected_folder_content = [prefix + '_DIMACS.dimacs']
+    formats = []
+    for format_path in expected_folder_content:
+        p = Path(format_path)
+        if p.is_file():
+            continue
+        elif not p.is_file() and not p.is_dir():
+            if 'dimacs' in format_path.lower():
+                formats.append('dimacs')
+
+    if len(formats) > 0:
+        cli.say('Creating formats', formats)
+        if e := util.translate_xml(file_path, formats_dir, formats) != "Successfully translated to all formats!":
+            cli.error(f"Could not create all formats for model {file_name.replace('.xml', '')}: {e}")
+            return
+
+    else:
+        cli.debug('All formats already present')
+    return expected_folder_content[0]
 
 
 def bootstrap_bdd_creation(file_path):

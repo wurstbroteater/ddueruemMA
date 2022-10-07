@@ -303,7 +303,8 @@ ACTIONS = {
             "compilers": [bdd.by_stub("cudd")],
             "svo": [svo.by_stub("force")],
             "dvo": ["sift"],
-            "lib_t": 60
+            "lib_t": 60,
+            "dump": False
         }
     },
     "--usample": {
