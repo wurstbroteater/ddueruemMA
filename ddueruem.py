@@ -203,13 +203,15 @@ def main():
                                 f"{config.DIR_OUT}{os.path.sep}{file.name.replace('.xml', '')}-{used_svo}-{used_n}.orders")
                             order = None
                             if order_file.is_file():
+                                cli.say('FORCE with given initial ordering')
                                 order = order_parser.parse(order_file)[0][0]
                                 if not all([isinstance(item, int) for item in order]):
                                     cli.warning('.xml in FORCE: parsed order is not int list!')
                             else:
-                                cli.warning(".xml in FORCE: Could not find orders file " + str(order_file))
+                                cli.say(".xml in FORCE: Could not find orders file " + str(
+                                    order_file) + ' starting computation')
+                                order = order_parser.parse(svo.compute(dimacs.parse(dimacs_file), actions["SVO"])['force'])[0]
                             actions['SVO']['settings']['order'] = order
-                            svo.compute(dimacs.parse(dimacs_file), actions["SVO"])
 
                         else:
                             cli.error("Force can not parse file with name " + file.name)
@@ -262,7 +264,7 @@ def main():
                 return
 
         cli.say("Finished static variable ordering.")
-
+    # TODO: EXAMPLE USAGE ./ddueruem.py evaluation/npc/npc.xml --svo force n:5 --bdd cudd lib_t:-1 dvo:off dump:True
     bdd_stats = []
     if "BDD" in actions:
         cli.say("Computing BDDs")
@@ -280,7 +282,8 @@ def main():
                 suffix = f'-pre_cl_{by_in_suffix}-1.orders'  # '_DIMACS.dimacs-force-10.orders'
                 sep = os.path.sep
                 orders_filepath = config.DIR_OUT + f'{sep}data{sep}{directory}{sep}' + model_name + suffix
-                if not util.is_file_present(orders_filepath):
+                use_order_file = not no_svo and type(expr) == CNF
+                if use_order_file and not util.is_file_present(orders_filepath):
                     cli.error('Could not find orders file: ' + orders_filepath)
                     return
                 dimacs_filepath = f"{str(in_file.parent)}{os.path.sep}{model_name}_formats{os.path.sep}{model_name}_DIMACS.dimacs" if type(
@@ -295,12 +298,22 @@ def main():
                         'input-filepath': expr[2]['input-filename'],
                         'input-filehash': expr[2]['input-filehash']}
                     attributed_expr.orders = {}
-                    attributed_expr.orders[by_in_suffix] = svo.parse_orders(orders_filepath)
+                    svo_orders = svo.parse_orders(orders_filepath)
+                    if ('SVO' in actions) and ('order' in actions['SVO']['settings']):
+                        svo_orders = actions['SVO']['settings']['order']
+                    if ('SVO' in actions) and ('order' not in actions['SVO']['settings']):
+                        actions['SVO']['settings']['order'] = svo.parse_orders(orders_filepath)
+                    attributed_expr.orders[by_in_suffix] = svo_orders
                     attributed_expr = [attributed_expr]
                 else:
                     attributed_expr = expr
                     attributed_expr.orders = {}
-                    attributed_expr.orders[by_in_suffix] = svo.parse_orders(orders_filepath)
+                    svo_orders = svo.parse_orders(orders_filepath)
+                    if ('SVO' in actions) and ('order' in actions['SVO']['settings']):
+                        svo_orders = actions['SVO']['settings']['order']
+                    if ('SVO' in actions) and ('order' not in actions['SVO']['settings']):
+                        actions['SVO']['settings']['order'] = svo.parse_orders(orders_filepath)
+                    attributed_expr.orders[by_in_suffix] = svo_orders
                     attributed_expr = [attributed_expr]
                 stats = bdd.compile(compiler, attributed_expr, actions["BDD"])
                 stats = [dict(s, svo=by_in_suffix) for s in stats]
