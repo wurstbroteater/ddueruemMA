@@ -319,6 +319,8 @@ def main():
                 stats = [dict(s, svo=by_in_suffix) for s in stats]
                 bdd_stats.extend(stats)
                 stat_file = path.join(config.DIR_OUT, bdd_filename)
+                if 'order' not in stats[0]:
+                    cli.warning('No order in bdd stats. Please use dump:True parameter for --bdd')
                 jinja_renderer.render("svoeval", stat_file, bdd_stats)
                 bdd_stats = []
 
