@@ -269,42 +269,65 @@ def main():
         for expr in exprs:
             in_file = Path(expr[-1]['input-filename']) if type(expr) != CNF else Path(expr.meta['input-filepath'])
             model_name = in_file.name.replace('.xml', '').replace('_DIMACS.dimacs', '')
-            by_in_suffix = 'min_span'
-            directory = 'span' if by_in_suffix == 'min_span' else 'size'
-            bdd_filename = f"{model_name}-bdd-cudd-{by_in_suffix}.csv"
-            if util.is_file_present(config.DIR_OUT + os.path.sep + bdd_filename):
-                cli.say('.csv for', in_file.name.replace('.xml', ''), 'already present, skipping ...')
-                continue
-            cli.say(f"For Model {model_name}")
-            for compiler in actions["BDD"]["compilers"]:
-                suffix = f'-pre_cl_{by_in_suffix}-1.orders'  # '_DIMACS.dimacs-force-10.orders'
-                sep = os.path.sep
-                orders_filepath = config.DIR_OUT + f'{sep}data{sep}{directory}{sep}' + model_name + suffix
-                if not util.is_file_present(orders_filepath):
-                    cli.error('Could not find orders file: ' + orders_filepath)
-                    return
-                dimacs_filepath = f"{str(in_file.parent)}{os.path.sep}{model_name}_formats{os.path.sep}{model_name}_DIMACS.dimacs" if type(
-                    expr) != CNF else in_file
-                if not util.is_file_present(dimacs_filepath):
-                    cli.warning('Dimacs file not present, creating in: ' + dimacs_filepath)
-                    dimacs_filepath = bootstrap_bdd_creation(str(in_file))[0]
-                if type(expr) != CNF:
-                    attributed_expr = dimacs.parse(dimacs_filepath)
-                    attributed_expr.meta = {
-                        'input-filename': Path(expr[2]['input-filename']).name,
-                        'input-filepath': expr[2]['input-filename'],
-                        'input-filehash': expr[2]['input-filehash']}
-                    attributed_expr.orders = {}
-                    attributed_expr.orders[by_in_suffix] = svo.parse_orders(orders_filepath)
-                    attributed_expr = [attributed_expr]
-                else:
-                    attributed_expr = expr
-                    attributed_expr.orders = {}
-                    attributed_expr.orders[by_in_suffix] = svo.parse_orders(orders_filepath)
-                    attributed_expr = [attributed_expr]
-                stats = bdd.compile(compiler, attributed_expr, actions["BDD"])
-                stats = [dict(s, svo=by_in_suffix) for s in stats]
-                bdd_stats.extend(stats)
+            by_in_suffixes = ['min_span', 'size', 'fm_traversal_df', 'fm_traversal_bf', 'sizeInForce']
+            dirs = {'min_span': 'span', 'size': 'size', 'fm_traversal_df': 'fmTraversals',
+                    'fm_traversal_bf': 'fmTraversals', 'sizeInForce': 'size'}
+            for by_in_suffix in by_in_suffixes:
+                directory = dirs[by_in_suffix]
+                bdd_filename = f"{model_name}-bdd-cudd-{by_in_suffix}.csv"
+                if util.is_file_present(config.DIR_OUT + os.path.sep + bdd_filename):
+                    cli.say('.csv for', in_file.name.replace('.xml', ''), 'already present, skipping ...')
+                    continue
+                cli.say(f"For Model {model_name}")
+                by_in_suffix = by_in_suffix if 'sizeInForce' not in by_in_suffix else '_DIMACS.dimacs-force'
+                for compiler in actions["BDD"]["compilers"]:
+                    if 'DIMACS.dimacs-force' in by_in_suffix:
+                        suffix = by_in_suffix
+                    elif 'fm_' in by_in_suffix:
+                        suffix = '-' + by_in_suffix
+                    else:
+                        suffix = f'-pre_cl_{by_in_suffix}'  # '_DIMACS.dimacs-force-10.orders'
+                    # in fmTraversal case files end with .order
+                    suffix = suffix + '-1.orders' if 'fm_' not in by_in_suffix else suffix + '.order'
+                    sep = os.path.sep
+                    orders_filepath = config.DIR_OUT + f'{sep}data{sep}{directory}{sep}' + model_name + suffix
+                    if not util.is_file_present(orders_filepath):
+                        cli.error('Could not find orders file: ' + orders_filepath)
+                        return
+                    dimacs_filepath = f"{str(in_file.parent)}{os.path.sep}{model_name}_formats{os.path.sep}{model_name}_DIMACS.dimacs" if type(
+                        expr) != CNF else in_file
+                    if not util.is_file_present(dimacs_filepath):
+                        cli.warning('Dimacs file not present, creating in: ' + dimacs_filepath)
+                        dimacs_filepath = bootstrap_bdd_creation(str(in_file))[0]
+                    if type(expr) != CNF:
+                        attributed_expr = dimacs.parse(dimacs_filepath)
+                        attributed_expr.meta = {
+                            'input-filename': Path(expr[2]['input-filename']).name,
+                            'input-filepath': expr[2]['input-filename'],
+                            'input-filehash': expr[2]['input-filehash']}
+                        attributed_expr.orders = {}
+                        if 'fm_' not in by_in_suffix:
+                            attributed_expr.orders[by_in_suffix] = svo.parse_orders(orders_filepath)
+                        else:
+                            content = {}
+                            try:
+                                content = open(orders_filepath, "r").read()
+                            except FileNotFoundError:
+                                print("[WARN] Could not open", orders_filepath)
+                                return content
+                            content = list(map(lambda x: x.strip(), content.split(":")))
+                            order = list(map(int, content[1][content[1].index("["): content[1].index("]")]
+                                             .replace("[", "").strip().split(","), ))
+                            attributed_expr.orders[by_in_suffix] = [order]
+                        attributed_expr = [attributed_expr]
+                    else:
+                        attributed_expr = expr
+                        attributed_expr.orders = {}
+                        attributed_expr.orders[by_in_suffix] = svo.parse_orders(orders_filepath)
+                        attributed_expr = [attributed_expr]
+                    stats = bdd.compile(compiler, attributed_expr, actions["BDD"])
+                    stats = [dict(s, svo=by_in_suffix) for s in stats]
+                    bdd_stats.extend(stats)
                 stat_file = path.join(config.DIR_OUT, bdd_filename)
                 jinja_renderer.render("svoeval", stat_file, bdd_stats)
                 bdd_stats = []
