@@ -56,7 +56,6 @@ def compile(compiler, exprs, context):
     dump = context["dump"]
     dvos = context["dvo"]
     lib_t = context["lib_t"]
-    print('context', context)
 
     for expr in exprs:
         if type(expr) == dict:
