@@ -1,6 +1,13 @@
 # ddueruem
 Pre Release Version for implementing static variable orderings evaluated in Eric's Master Thesis.
 
+### Requirements
+* Python 3.8+
+* `make`
+* `cmake`
+* `glibc`
+* `libgmp-dev`
+
 ### Usefull commands
 That I should have known before using try-and-error to find them ... 
 
