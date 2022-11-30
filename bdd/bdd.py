@@ -97,7 +97,7 @@ def compile(compiler, exprs, context):
 
                 pool.close()
                 pool.join()
-            print('hey')
+
             for i, (run, meta) in enumerate(runs):
                 try:
                     results = run.result()
