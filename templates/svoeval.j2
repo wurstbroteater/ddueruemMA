@@ -1,4 +1,4 @@
-input_file;svo;dvo;dvo_time;bdd_bootstrap;bdd_compile;bdd_timeout;bdd_nodes;order
+input_file;input_hash;svo;dvo;dvo_time;bdd_bootstrap;bdd_compile;bdd_timeout
 {% for entry in data -%}
-{{entry.input_filename}};{{entry.svo}};{{entry.bdd_dvo}};{{entry.time_dvo}};{{entry.time_bdd_bootstrap}};{{entry.time_bdd_build}};{{entry.bdd_build_timeout}};{{entry.bdd_nodes}};{{entry.order}}
+{{entry.input_filename}};{{entry.input_filehash}};{{entry.svo}};{{entry.bdd_dvo}};{{entry.time_dvo}};{{entry.time_bdd_bootstrap}};{{entry.time_bdd_build}};{{entry.bdd_build_timeout}};{{entry.size}}
 {% endfor %}

@@ -1,4 +1,4 @@
-from ctypes import CDLL, Structure, POINTER, c_uint, c_double, c_ulong, byref, c_int
+from ctypes import CDLL, Structure, POINTER, c_uint, c_double, c_ulong, byref, c_int, c_char_p, c_void_p
 from enum import IntEnum
 import os
 import re

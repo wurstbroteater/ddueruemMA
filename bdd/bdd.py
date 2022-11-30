@@ -14,7 +14,7 @@ from svo.random import asc_by_id
 
 from cli import cli
 from util import plugin, jinja_renderer
-
+from os import linesep
 from util.util import tic, toc, timestamp, peek
 
 from collections import deque
@@ -97,13 +97,13 @@ def compile(compiler, exprs, context):
 
                 pool.close()
                 pool.join()
-
+            print('hey')
             for i, (run, meta) in enumerate(runs):
                 try:
                     results = run.result()
                     meta = results
-                    # cli.say(f"#{i} {compiler.FULL} {dvo} {meta['time-bdd-build']:.3f}s ({meta['time-bdd-bootstrap']:.3f}s)")
-                    cli.say(f"#{i} {compiler.FULL} {dvo} {meta['time-bdd-build']}s ({meta['time-bdd-bootstrap']}s)")
+                    cli.say(
+                        f"#{i} {compiler.FULL} {dvo} {meta['time-bdd-build']:.3f}s ({meta['time-bdd-bootstrap']:.3f}s)")
                 except TimeoutError:
                     cli.say(f"#{i} {compiler.FULL} {dvo} timeouted ({lib_t}s)")
                 except Exception as exc:
@@ -111,12 +111,30 @@ def compile(compiler, exprs, context):
                     traceback.print_exc()
 
                 if "log" in meta:
+
+                    logfile = path.join(config.DIR_OUT,
+                                        f'{meta["input-filename"]}-{meta["svo"]}-{meta["bdd-dvo"]}-{i}-{len(runs)}-{timestamp()}.log')
+
+                    content = ["clause_id;clause_of;clause;time_total;time_bdd;time_dvo;size;order"]
+
+                    for entry in meta["log"]:
+                        j, k, clause, total, bdd, dvo, size, order = entry
+                        entry = f'{j};{k};{" ".join([str(x) for x in clause])};{total:.3f};{bdd:.3f};{dvo:.3f};{size};{",".join([str(x) for x in order])}'
+                        content.append(entry)
+
+                    content.append("")
+                    content = linesep.join(content)
+
+                    with open(logfile, "w+") as file:
+                        file.write(content)
+
                     if meta["log"]:
-                        _, _, _, _, time_dvo = meta["log"][-1]
+                        _, _, _, _, _, time_dvo, size, _ = meta["log"][-1]
                         meta["time-dvo"] = time_dvo
-                    meta['input-filename'] = meta['input-filename'].replace('.xml', '').replace('_DIMACS.dimacs', '')
+                        meta["size"] = size
+
                     stats.append(meta)
-        # jinja_renderer.render("bdd", stat_file, stats)
+            jinja_renderer.render("bdd", stat_file, stats)
 
     return stats
 
@@ -197,19 +215,13 @@ class BDD():
                 time_bdd = 0
 
             log = meta["log"]
-            log.append((i, str(clause), time_total, time_bdd, time_dvo))
+            log.append((i, n, clause, time_total, time_bdd, time_dvo, mgr.size_(bdd), mgr.get_order(bdd)))
             meta["log"] = log
 
             i += 1
 
-            # inner_order = mgr.get_order(bdd)
-
-            # if inner_order != order:
-            #     order = inner_order
-
         meta["time-bdd-build"] = toc()
         meta["bdd-build-timeout"] = False
-        meta["bdd-nodes"] = self.mgr.size_(bdd)
 
         self.bdd = bdd
 
